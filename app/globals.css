@@ -1,0 +1,624 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+	:root {
+		--background: 0 0% 100%;
+		--foreground: 224 71.4% 4.1%;
+		--card: 0 0% 100%;
+		--card-foreground: 224 71.4% 4.1%;
+		--popover: 0 0% 100%;
+		--popover-foreground: 224 71.4% 4.1%;
+		--primary: 271 81% 36%;
+		--primary-foreground: 210 20% 98%;
+		--secondary: 220 14.3% 95.9%;
+		--secondary-foreground: 220.9 39.3% 11%;
+		--muted: 220 14.3% 95.9%;
+		--muted-foreground: 220 8.9% 46.1%;
+		--accent: 271 81% 95%;
+		--accent-foreground: 271 81% 36%;
+		--destructive: 0 84.2% 60.2%;
+		--destructive-foreground: 210 20% 98%;
+		--border: 220 13% 91%;
+		--input: 220 13% 91%;
+		--ring: 271 81% 36%;
+		--radius: 0.5rem;
+	}
+
+	.dark {
+		--background: 224 71.4% 4.1%;
+		--foreground: 210 20% 98%;
+		--card: 224 71.4% 4.1%;
+		--card-foreground: 210 20% 98%;
+		--popover: 224 71.4% 4.1%;
+		--popover-foreground: 210 20% 98%;
+		--primary: 271 81% 56%;
+		--primary-foreground: 210 20% 98%;
+		--secondary: 215 27.9% 16.9%;
+		--secondary-foreground: 210 20% 98%;
+		--muted: 215 27.9% 16.9%;
+		--muted-foreground: 217.9 10.6% 64.9%;
+		--accent: 271 81% 24%;
+		--accent-foreground: 210 20% 98%;
+		--destructive: 0 62.8% 30.6%;
+		--destructive-foreground: 210 20% 98%;
+		--border: 215 27.9% 16.9%;
+		--input: 215 27.9% 16.9%;
+		--ring: 271 81% 56%;
+	}
+}
+
+@layer base {
+	* {
+		border-color: var(--border);
+	}
+	body {
+		@apply bg-background text-foreground;
+		font-feature-settings: 'rlig' 1, 'calt' 1;
+		background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+	}
+
+	.dark body {
+		background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		@apply font-display;
+	}
+}
+
+/* Custom fonts */
+.font-display {
+	font-family: 'Playfair Display', serif;
+}
+
+.brand-name {
+	font-family: 'Parisienne', cursive;
+}
+
+/* Custom animations */
+@keyframes float {
+	0% {
+		transform: translateY(0px);
+	}
+	50% {
+		transform: translateY(-10px);
+	}
+	100% {
+		transform: translateY(0px);
+	}
+}
+
+.animate-float {
+	animation: float 3s ease-in-out infinite;
+}
+
+/* Product card hover effect */
+.product-card-hover {
+	transition: all 0.3s ease;
+}
+
+.product-card-hover:hover {
+	transform: translateY(-10px);
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+		0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Animación fade-in para tarjetas de recomendaciones */
+@keyframes fade-in {
+	from {
+		opacity: 0;
+		transform: translateY(24px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.animate-fade-in {
+	animation: fade-in 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Animación de badges y check en recomendaciones */
+.badge-anim {
+	transition: transform 0.2s;
+}
+.badge-anim:hover {
+	transform: scale(1.08);
+	box-shadow: 0 2px 8px rgba(80, 0, 120, 0.08);
+}
+
+@keyframes scale-in {
+	from {
+		transform: scale(0.7);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+.animate-scale-in {
+	animation: scale-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Animación pop para badges */
+@keyframes pop {
+	0% {
+		transform: scale(1);
+	}
+	50% {
+		transform: scale(1.25);
+	}
+	100% {
+		transform: scale(1);
+	}
+}
+.animate-pop {
+	animation: pop 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animación slide-in para menú mobile */
+@keyframes slide-in {
+	from {
+		opacity: 0;
+		transform: translateX(-40px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+.animate-slide-in {
+	animation: slide-in 0.4s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Transiciones suaves para modo oscuro */
+* {
+	transition: background-color 0.3s ease, border-color 0.3s ease,
+		color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* Estilos específicos para modo oscuro */
+.dark .product-card-hover:hover {
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+		0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+.dark .badge-anim:hover {
+	box-shadow: 0 2px 8px rgba(255, 255, 255, 0.15);
+}
+
+/* Mejoras para modo oscuro en componentes específicos */
+.dark .hover\:bg-gray-50:hover {
+	background-color: hsl(var(--muted));
+}
+
+.dark .text-gray-600 {
+	color: hsl(var(--muted-foreground));
+}
+
+.dark .border {
+	border-color: hsl(var(--border));
+}
+
+/* Enhanced dark mode styles */
+.dark {
+	color-scheme: dark;
+}
+
+.dark header {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+}
+
+.dark .bg-white {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+}
+
+.dark .bg-purple-800 {
+	background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+}
+
+.dark .bg-purple-800:hover {
+	background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+	box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.dark input {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.8) 0%,
+		rgba(51, 65, 85, 0.8) 100%
+	);
+	border-color: rgba(71, 85, 105, 0.5);
+}
+
+.dark input:focus {
+	border-color: #a855f7;
+	box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+.dark .text-gray-900 {
+	color: #f8fafc;
+}
+
+.dark .text-gray-700 {
+	color: #e2e8f0;
+}
+
+.dark .text-gray-500 {
+	color: #94a3b8;
+}
+
+.dark .hover\:bg-gray-50:hover {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.3) 0%,
+		rgba(51, 65, 85, 0.3) 100%
+	);
+}
+
+.dark .hover\:text-purple-800:hover {
+	color: #a855f7;
+}
+
+.dark .bg-gradient-to-br {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 50%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+}
+
+.dark .backdrop-blur-xl {
+	backdrop-filter: blur(24px);
+}
+
+.dark .shadow-lg {
+	box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3),
+		0 4px 6px -2px rgba(0, 0, 0, 0.2);
+}
+
+.dark .shadow-xl {
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+		0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+.dark * {
+	scrollbar-color: #475569 #1e293b;
+}
+
+.dark .product-card-hover:hover {
+	box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4),
+		0 10px 10px -5px rgba(0, 0, 0, 0.3);
+}
+
+.dark .bg-purple-100 {
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.1) 0%,
+		rgba(168, 85, 247, 0.1) 100%
+	);
+}
+
+.dark .text-purple-800 {
+	color: #a855f7;
+}
+
+.dark .bg-white.dark\:bg-gray-900 {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+}
+
+.dark .border-gray-200 {
+	border-color: rgba(71, 85, 105, 0.5);
+}
+
+.dark .border-gray-100 {
+	border-color: rgba(71, 85, 105, 0.3);
+}
+
+.dark .focus\:ring-purple-400:focus {
+	box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+}
+
+/* Enhanced scrollbar for dark mode */
+.dark ::-webkit-scrollbar {
+	width: 8px;
+}
+
+.dark ::-webkit-scrollbar-track {
+	background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+	background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+	border-radius: 4px;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+	background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%);
+}
+
+/* Enhanced dark mode gradients and effects */
+.dark .bg-gradient-to-r {
+	background: linear-gradient(
+		90deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 50%,
+		rgba(15, 23, 42, 0.95) 100%
+	);
+}
+
+.dark .bg-gradient-to-t {
+	background: linear-gradient(
+		0deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+}
+
+.dark .bg-gradient-to-b {
+	background: linear-gradient(
+		180deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(15, 23, 42, 0.95) 100%
+	);
+}
+
+/* Enhanced button styles for dark mode */
+.dark .btn-primary {
+	background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+	box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+}
+
+.dark .btn-primary:hover {
+	background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
+	box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
+}
+
+/* Enhanced card styles for dark mode */
+.dark .card {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.dark .card:hover {
+	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+	border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* Enhanced form elements for dark mode */
+.dark .form-input {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.8) 0%,
+		rgba(51, 65, 85, 0.8) 100%
+	);
+	border: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+.dark .form-input:focus {
+	border-color: #a855f7;
+	box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.9) 0%,
+		rgba(51, 65, 85, 0.9) 100%
+	);
+}
+
+/* Enhanced dropdown styles for dark mode */
+.dark .dropdown-content {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(71, 85, 105, 0.3);
+	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.dark .dropdown-item:hover {
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.1) 0%,
+		rgba(168, 85, 247, 0.1) 100%
+	);
+}
+
+/* Enhanced modal styles for dark mode */
+.dark .modal-overlay {
+	background: rgba(0, 0, 0, 0.6);
+	backdrop-filter: blur(8px);
+}
+
+.dark .modal-content {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+	border: 1px solid rgba(71, 85, 105, 0.3);
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Enhanced table styles for dark mode */
+.dark .table {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+}
+
+.dark .table th {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.8) 0%,
+		rgba(30, 41, 59, 0.8) 100%
+	);
+	border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+.dark .table td {
+	border-bottom: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+.dark .table tr:hover {
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.05) 0%,
+		rgba(168, 85, 247, 0.05) 100%
+	);
+}
+
+/* Enhanced navigation styles for dark mode */
+.dark .nav-link {
+	color: #e2e8f0;
+	transition: all 0.3s ease;
+}
+
+.dark .nav-link:hover {
+	color: #a855f7;
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.1) 0%,
+		rgba(168, 85, 247, 0.1) 100%
+	);
+}
+
+.dark .nav-link.active {
+	color: #a855f7;
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.15) 0%,
+		rgba(168, 85, 247, 0.15) 100%
+	);
+}
+
+/* Enhanced sidebar styles for dark mode */
+.dark .sidebar {
+	background: linear-gradient(
+		180deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	backdrop-filter: blur(20px);
+	border-right: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+/* Enhanced footer styles for dark mode */
+.dark .footer {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	border-top: 1px solid rgba(71, 85, 105, 0.3);
+}
+
+/* Enhanced loading states for dark mode */
+.dark .loading {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.8) 0%,
+		rgba(51, 65, 85, 0.8) 100%
+	);
+}
+
+.dark .loading::after {
+	background: linear-gradient(
+		90deg,
+		transparent 0%,
+		rgba(139, 92, 246, 0.2) 50%,
+		transparent 100%
+	);
+}
+
+/* Enhanced tooltip styles for dark mode */
+.dark .tooltip {
+	background: linear-gradient(
+		135deg,
+		rgba(15, 23, 42, 0.95) 0%,
+		rgba(30, 41, 59, 0.95) 100%
+	);
+	border: 1px solid rgba(71, 85, 105, 0.3);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Enhanced notification styles for dark mode */
+.dark .notification {
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+	border: 1px solid rgba(71, 85, 105, 0.3);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.dark .notification.success {
+	border-color: rgba(34, 197, 94, 0.3);
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+}
+
+.dark .notification.error {
+	border-color: rgba(239, 68, 68, 0.3);
+	background: linear-gradient(
+		135deg,
+		rgba(30, 41, 59, 0.95) 0%,
+		rgba(51, 65, 85, 0.95) 100%
+	);
+}
+
+/* Enhanced badge styles for dark mode */
+.dark .badge {
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.2) 0%,
+		rgba(168, 85, 247, 0.2) 100%
+	);
+	border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.dark .badge:hover {
+	background: linear-gradient(
+		135deg,
+		rgba(139, 92, 246, 0.3) 0%,
+		rgba(168, 85, 247, 0.3) 100%
+	);
+	box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+}
