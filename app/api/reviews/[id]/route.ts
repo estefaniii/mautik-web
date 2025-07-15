@@ -1,26 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Review from '@/models/Review';
+import { PrismaClient } from '@prisma/client';
 import { verifyToken } from '@/lib/auth';
+
+// Uso de 'params' actualizado para Next.js 13+ API routes
+const prisma = new PrismaClient();
 
 // PUT - Actualizar una reseña
 export async function PUT(
 	request: NextRequest,
-	{ params }: { params: { id: string } },
+	context: { params: { id: string } },
 ) {
 	try {
+		const { params } = context;
 		const { id } = params;
 		const body = await request.json();
-		const { rating, title, comment } = body;
+		const { rating, comment } = body;
 
 		// Validar campos requeridos
-		if (!rating || !title || !comment) {
+		if (!rating || !comment) {
 			return NextResponse.json(
 				{ error: 'Todos los campos son requeridos' },
 				{ status: 400 },
 			);
 		}
-
 		if (rating < 1 || rating > 5) {
 			return NextResponse.json(
 				{ error: 'La calificación debe estar entre 1 y 5' },
@@ -36,76 +38,42 @@ export async function PUT(
 				{ status: 401 },
 			);
 		}
-
 		const decoded = verifyToken(token);
 		if (!decoded) {
 			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 		}
 
-		try {
-			await connectDB();
-
-			// Buscar la reseña y verificar que pertenece al usuario
-			const review = await Review.findById(id);
-			if (!review) {
-				return NextResponse.json(
-					{ error: 'Reseña no encontrada' },
-					{ status: 404 },
-				);
-			}
-
-			if (review.user.toString() !== decoded.id) {
-				return NextResponse.json(
-					{ error: 'No tienes permisos para editar esta reseña' },
-					{ status: 403 },
-				);
-			}
-
-			// Actualizar la reseña
-			review.rating = rating;
-			review.title = title;
-			review.comment = comment;
-			review.updatedAt = new Date();
-
-			await review.save();
-			await review.populate('user', 'name avatar');
-
-			return NextResponse.json({
-				review,
-				message: 'Reseña actualizada exitosamente',
-			});
-		} catch (error) {
-			const err = error as any;
-			console.log(
-				'MongoDB Atlas no disponible, simulando actualización local:',
-				err?.message || 'Unknown error',
+		// Buscar la reseña y verificar que pertenece al usuario
+		const review = await prisma.review.findUnique({ where: { id } });
+		if (!review) {
+			return NextResponse.json(
+				{ error: 'Reseña no encontrada' },
+				{ status: 404 },
 			);
-
-			// Simular actualización local
-			const mockReview = {
-				_id: id,
-				product: 'product-id',
-				user: {
-					_id: decoded.id,
-					name: 'Usuario Demo',
-					avatar: '/placeholder-user.jpg',
-				},
-				rating,
-				title,
-				comment,
-				helpful: 0,
-				verified: true,
-				createdAt: new Date(),
-				updatedAt: new Date(),
-			};
-
-			return NextResponse.json({
-				review: mockReview,
-				message:
-					'Reseña actualizada (simulación local) - MongoDB Atlas no disponible',
-			});
 		}
-	} catch (error: any) {
+		if (review.userId !== decoded.id) {
+			return NextResponse.json(
+				{ error: 'No tienes permisos para editar esta reseña' },
+				{ status: 403 },
+			);
+		}
+
+		// Actualizar la reseña
+		const updatedReview = await prisma.review.update({
+			where: { id },
+			data: {
+				rating,
+				comment,
+				updatedAt: new Date(),
+			},
+			include: { user: { select: { id: true, name: true, avatar: true } } },
+		});
+
+		return NextResponse.json({
+			review: updatedReview,
+			message: 'Reseña actualizada exitosamente',
+		});
+	} catch (error) {
 		console.error('Error actualizando reseña:', error);
 		return NextResponse.json(
 			{ error: 'Error interno del servidor' },
@@ -117,11 +85,11 @@ export async function PUT(
 // DELETE - Eliminar una reseña
 export async function DELETE(
 	request: NextRequest,
-	{ params }: { params: { id: string } },
+	context: { params: { id: string } },
 ) {
 	try {
+		const { params } = context;
 		const { id } = params;
-
 		// Verificar autenticación
 		const token = request.headers.get('authorization')?.replace('Bearer ', '');
 		if (!token) {
@@ -130,51 +98,30 @@ export async function DELETE(
 				{ status: 401 },
 			);
 		}
-
 		const decoded = verifyToken(token);
 		if (!decoded) {
 			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 		}
-
-		try {
-			await connectDB();
-
-			// Buscar la reseña y verificar que pertenece al usuario
-			const review = await Review.findById(id);
-			if (!review) {
-				return NextResponse.json(
-					{ error: 'Reseña no encontrada' },
-					{ status: 404 },
-				);
-			}
-
-			if (review.user.toString() !== decoded.id) {
-				return NextResponse.json(
-					{ error: 'No tienes permisos para eliminar esta reseña' },
-					{ status: 403 },
-				);
-			}
-
-			// Eliminar la reseña
-			await Review.findByIdAndDelete(id);
-
-			return NextResponse.json({
-				message: 'Reseña eliminada exitosamente',
-			});
-		} catch (error) {
-			const err = error as any;
-			console.log(
-				'MongoDB Atlas no disponible, simulando eliminación local:',
-				err?.message || 'Unknown error',
+		// Buscar la reseña y verificar que pertenece al usuario
+		const review = await prisma.review.findUnique({ where: { id } });
+		if (!review) {
+			return NextResponse.json(
+				{ error: 'Reseña no encontrada' },
+				{ status: 404 },
 			);
-
-			// Simular eliminación local
-			return NextResponse.json({
-				message:
-					'Reseña eliminada (simulación local) - MongoDB Atlas no disponible',
-			});
 		}
-	} catch (error: any) {
+		if (review.userId !== decoded.id) {
+			return NextResponse.json(
+				{ error: 'No tienes permisos para eliminar esta reseña' },
+				{ status: 403 },
+			);
+		}
+		// Eliminar la reseña
+		await prisma.review.delete({ where: { id } });
+		return NextResponse.json({
+			message: 'Reseña eliminada exitosamente',
+		});
+	} catch (error) {
 		console.error('Error eliminando reseña:', error);
 		return NextResponse.json(
 			{ error: 'Error interno del servidor' },

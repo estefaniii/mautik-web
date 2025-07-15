@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
+import jwt from 'jsonwebtoken';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 // Configurar Cloudinary
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
 const apiKey = process.env.CLOUDINARY_API_KEY;
 const apiSecret = process.env.CLOUDINARY_API_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET!;
 
 if (cloudName && apiKey && apiSecret) {
 	cloudinary.config({
@@ -14,8 +19,35 @@ if (cloudName && apiKey && apiSecret) {
 	});
 }
 
+// Función para verificar el token JWT desde las cookies
+const verifyTokenFromCookies = (request: NextRequest) => {
+	try {
+		const authToken = request.cookies.get('auth-token')?.value;
+
+		if (!authToken) {
+			return null;
+		}
+
+		const decoded = jwt.verify(authToken, JWT_SECRET) as any;
+		return decoded;
+	} catch (error) {
+		console.error('Token verification error:', error);
+		return null;
+	}
+};
+
 export async function POST(request: NextRequest) {
 	try {
+		// Verificar autenticación usando JWT desde cookies
+		const user = verifyTokenFromCookies(request);
+
+		if (!user) {
+			return NextResponse.json(
+				{ error: 'No autorizado. Debes iniciar sesión para subir archivos.' },
+				{ status: 401 },
+			);
+		}
+
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
 
@@ -95,12 +127,29 @@ export async function POST(request: NextRequest) {
 		});
 
 		const result = await uploadPromise;
+		const imageUrl = (result as any).secure_url;
+
+		// Actualizar el avatar del usuario en la base de datos
+		const updatedUser = await prisma.user.update({
+			where: { id: user.id },
+			data: { avatar: imageUrl },
+			select: {
+				id: true,
+				name: true,
+				email: true,
+				isAdmin: true,
+				avatar: true,
+				address: true,
+				phone: true,
+			},
+		});
 
 		return NextResponse.json({
-			url: (result as any).secure_url,
+			url: imageUrl,
 			public_id: (result as any).public_id,
 			width: (result as any).width,
 			height: (result as any).height,
+			user: updatedUser,
 		});
 	} catch (error) {
 		console.error('Upload error:', error);

@@ -68,7 +68,6 @@ export default function TermsOfServicePage() {
               <div className="space-y-4 text-gray-700">
                 <p><strong>Política de Envíos:</strong></p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
-                  <li>Envío gratuito en pedidos superiores a $50</li>
                   <li>Tiempo de entrega estimado: 3-7 días hábiles</li>
                   <li>Envíos a todo Panamá</li>
                   <li>Seguimiento de pedidos disponible</li>
@@ -159,7 +158,6 @@ export default function TermsOfServicePage() {
                 </p>
                 <div className="bg-purple-50 rounded-lg p-4">
                   <p><strong>Email:</strong> mautik.official@gmail.com</p>
-                  <p><strong>Teléfono:</strong> +507 6778 2931</p>
                   <p><strong>Dirección:</strong> La Chorrera, Panama Oeste, Panamá</p>
                 </div>
               </div>

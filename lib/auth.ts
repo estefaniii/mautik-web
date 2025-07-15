@@ -1,6 +1,9 @@
 import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
-import User from '@/models/User';
+import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
+
+const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET!;
 
@@ -38,20 +41,36 @@ export function getUserFromRequest(request: NextRequest): UserPayload | null {
 	return verifyToken(token);
 }
 
+export async function verifyAuth(
+	request: NextRequest,
+): Promise<UserPayload | null> {
+	return getUserFromRequest(request);
+}
+
 export async function authenticateUser(email: string, password: string) {
 	try {
-		const user = await User.findOne({ email }).select('+password');
+		const user = await prisma.user.findUnique({
+			where: { email },
+			select: {
+				id: true,
+				email: true,
+				name: true,
+				isAdmin: true,
+				password: true,
+			},
+		});
 		if (!user) {
 			return { success: false, error: 'Usuario no encontrado' };
 		}
 
-		const isPasswordValid = await user.comparePassword(password);
+		// Usar bcrypt.compare en lugar de user.comparePassword
+		const isPasswordValid = await bcrypt.compare(password, user.password);
 		if (!isPasswordValid) {
 			return { success: false, error: 'Contraseña incorrecta' };
 		}
 
 		const userPayload: UserPayload = {
-			id: user._id.toString(),
+			id: user.id,
 			email: user.email,
 			name: user.name,
 			isAdmin: user.isAdmin,
@@ -60,7 +79,11 @@ export async function authenticateUser(email: string, password: string) {
 		const token = generateToken(userPayload);
 		return { success: true, user: userPayload, token };
 	} catch (error) {
-		console.error('Authentication error:', error);
+		const errorToUse =
+			error instanceof Error
+				? error
+				: new Error(typeof error === 'string' ? error : JSON.stringify(error));
+		console.error('Authentication error:', errorToUse);
 		return { success: false, error: 'Error de autenticación' };
 	}
 }
@@ -68,25 +91,35 @@ export async function authenticateUser(email: string, password: string) {
 export async function createAdminUser() {
 	try {
 		// Verificar si ya existe un admin
-		const existingAdmin = await User.findOne({ isAdmin: true });
+		const existingAdmin = await prisma.user.findFirst({
+			where: { isAdmin: true },
+		});
 		if (existingAdmin) {
 			console.log('Admin user already exists');
 			return { success: false, error: 'Admin user already exists' };
 		}
 
+		// Hashear la contraseña antes de crear el usuario
+		const hashedPassword = await bcrypt.hash('admin123', 12);
+
 		// Crear usuario admin
-		const adminUser = new User({
-			name: 'Admin Mautik',
-			email: 'admin@mautik.com',
-			password: 'admin123',
-			isAdmin: true,
+		const adminUser = await prisma.user.create({
+			data: {
+				name: 'Admin Mautik',
+				email: 'admin@mautik.com',
+				password: hashedPassword,
+				isAdmin: true,
+			},
 		});
 
-		await adminUser.save();
 		console.log('Admin user created successfully');
 		return { success: true, user: adminUser };
 	} catch (error) {
-		console.error('Error creating admin user:', error);
+		const errorToUse =
+			error instanceof Error
+				? error
+				: new Error(typeof error === 'string' ? error : JSON.stringify(error));
+		console.error('Error creating admin user:', errorToUse);
 		return { success: false, error: 'Error creating admin user' };
 	}
 }

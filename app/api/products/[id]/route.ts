@@ -1,20 +1,17 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Product from '@/models/Product';
-import mongoose from 'mongoose';
-import { getUserFromRequest } from '@/lib/auth';
+// Uso de 'params' actualizado para Next.js 13+ API routes
+import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET(
 	request: NextRequest,
-	{ params }: { params: { id: string } },
+	context: { params: { id: string } },
 ) {
 	try {
+		const { params } = context;
 		const { id } = params;
-		if (!mongoose.Types.ObjectId.isValid(id)) {
-			return NextResponse.json({ error: 'ID inválido' }, { status: 404 });
-		}
-		await connectDB();
-		const product = await Product.findById(id).lean();
+		const product = await prisma.product.findUnique({ where: { id } });
 		if (!product) {
 			return NextResponse.json(
 				{ error: 'Producto no encontrado' },
@@ -32,24 +29,14 @@ export async function GET(
 }
 
 export async function DELETE(
-	req: NextRequest,
-	{ params }: { params: { id: string } },
+	request: NextRequest,
+	context: { params: { id: string } },
 ) {
-	const user = getUserFromRequest(req);
-	if (!user || !user.isAdmin) {
-		return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-	}
 	try {
+		const { params } = context;
 		const { id } = params;
-		await connectDB();
-		const deleted = await Product.findByIdAndDelete(id);
-		if (!deleted) {
-			return NextResponse.json(
-				{ error: 'Producto no encontrado' },
-				{ status: 404 },
-			);
-		}
-		return NextResponse.json({ success: true });
+		const deleted = await prisma.product.delete({ where: { id } });
+		return NextResponse.json({ success: true, deleted });
 	} catch (error) {
 		console.error('Error eliminando producto:', error);
 		return NextResponse.json(
@@ -60,16 +47,17 @@ export async function DELETE(
 }
 
 export async function PUT(
-	req: NextRequest,
-	{ params }: { params: { id: string } },
+	request: NextRequest,
+	context: { params: { id: string } },
 ) {
-	const user = getUserFromRequest(req);
-	if (!user || !user.isAdmin) {
-		return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-	}
 	try {
+		const { params } = context;
 		const { id } = params;
-		const data = await req.json();
+		const data = await request.json();
+
+		// Eliminar cualquier campo id del payload para evitar cambios de ID
+		delete data.id;
+
 		// Validaciones básicas
 		if (
 			!data.name ||
@@ -127,22 +115,56 @@ export async function PUT(
 				{ status: 400 },
 			);
 		}
-		if (!data.sku || typeof data.sku !== 'string') {
-			data.sku = `SKU-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-		}
-		await connectDB();
-		const updated = await Product.findByIdAndUpdate(id, data, { new: true });
-		if (!updated) {
+		if (
+			!data.sku ||
+			typeof data.sku !== 'string' ||
+			data.sku.trim().length < 3
+		) {
 			return NextResponse.json(
-				{ error: 'Producto no encontrado' },
-				{ status: 404 },
+				{ error: 'El SKU es obligatorio y debe tener al menos 3 caracteres.' },
+				{ status: 400 },
 			);
 		}
-		return NextResponse.json(updated);
-	} catch (error) {
+		// Validar unicidad de SKU (excepto para el mismo producto)
+		const existingSku = await prisma.product.findFirst({
+			where: { sku: data.sku, NOT: { id } },
+		});
+		if (existingSku) {
+			return NextResponse.json(
+				{ error: 'El SKU ya existe. Debe ser único.' },
+				{ status: 400 },
+			);
+		}
+		const updated = await prisma.product.update({
+			where: { id },
+			data: {
+				name: data.name,
+				description: data.description,
+				price: data.price,
+				stock: data.stock,
+				images: data.images,
+				category: data.category,
+				sku: data.sku,
+				originalPrice: data.originalPrice,
+				featured: !!data.featured,
+				isNew: !!data.isNew,
+				discount: data.discount,
+			},
+		});
+		return NextResponse.json({
+			message: 'Producto actualizado exitosamente',
+			product: updated,
+		});
+	} catch (error: any) {
 		console.error('Error actualizando producto:', error);
+		if (error.code === 'P2002' && error.meta?.target?.includes('sku')) {
+			return NextResponse.json(
+				{ error: 'El SKU ya existe. Debe ser único.' },
+				{ status: 400 },
+			);
+		}
 		return NextResponse.json(
-			{ error: 'Error interno del servidor' },
+			{ error: error.message || 'Error interno del servidor' },
 			{ status: 500 },
 		);
 	}

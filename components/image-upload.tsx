@@ -48,11 +48,13 @@ export default function ImageUpload({ onImageUpload, className }: ImageUploadPro
 
       const response = await fetch('/api/upload', {
         method: 'POST',
+        credentials: 'include', // Incluir cookies automáticamente
         body: formData,
       })
 
       if (!response.ok) {
-        throw new Error('Error al subir la imagen')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Error al subir la imagen')
       }
 
       const data = await response.json()
@@ -67,10 +69,11 @@ export default function ImageUpload({ onImageUpload, className }: ImageUploadPro
         throw new Error('No se recibió la URL de la imagen')
       }
     } catch (error) {
-      console.error('Error uploading image:', error)
+      const errorToUse = error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
+      console.error('Error uploading image:', errorToUse)
       toast({
         title: "Error",
-        description: "No se pudo subir la imagen. Verifica tu conexión a internet.",
+        description: errorToUse.message || "No se pudo subir la imagen. Verifica tu conexión a internet.",
         variant: "destructive"
       })
     } finally {

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import ImageUpload from '@/components/image-upload';
+import Link from 'next/link';
 
 export default function EditProductPage() {
   const { toast } = useToast();
@@ -19,11 +20,11 @@ export default function EditProductPage() {
   const [product, setProduct] = useState({
     name: "",
     description: "",
-    price: 0,
+    price: "",
     category: "",
     images: [""],
-    stock: 0,
-    discount: 0,
+    stock: "",
+    discount: "0",
     isNew: false,
     featured: false,
   });
@@ -35,7 +36,14 @@ export default function EditProductPage() {
       try {
         const res = await fetch(`/api/products/${id}`);
         const data = await res.json();
-        if (data.product) setProduct(data.product);
+        if (data.product) {
+          setProduct({
+            ...data.product,
+            price: data.product.price?.toString() || "",
+            stock: data.product.stock?.toString() || "",
+            discount: data.product.discount?.toString() || "0",
+          });
+        }
       } catch (e) {
         toast({ title: "Error", description: "No se pudo cargar el producto", variant: "destructive" });
       } finally {
@@ -47,9 +55,14 @@ export default function EditProductPage() {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
+    const numericFields = ["price", "stock", "discount"];
     setProduct((prev) => ({
       ...prev,
-      [name]: type === "checkbox" ? checked : value,
+      [name]: type === "checkbox"
+        ? checked
+        : numericFields.includes(name)
+        ? value
+        : value,
     }));
   };
 
@@ -67,10 +80,16 @@ export default function EditProductPage() {
     setSaving(true);
     setFormErrors({});
     try {
+      const payload = {
+        ...product,
+        price: product.price === "" ? 0 : Number(product.price),
+        stock: product.stock === "" ? 0 : Number(product.stock),
+        discount: product.discount === "" ? 0 : Number(product.discount),
+      };
       const res = await fetch(`/api/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(product),
+        body: JSON.stringify(payload),
       });
       if (res.ok) {
         toast({ title: "Producto actualizado", description: "Los cambios se han guardado." });
@@ -95,8 +114,11 @@ export default function EditProductPage() {
   return (
     <div className="max-w-xl mx-auto py-8">
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Editar Producto</CardTitle>
+          <Link href={`/product/${id}`} target="_blank" rel="noopener noreferrer">
+            <Button variant="outline" size="sm">Ver producto</Button>
+          </Link>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSave} className="space-y-4">
@@ -142,10 +164,13 @@ export default function EditProductPage() {
                 <input type="checkbox" name="featured" checked={!!product.featured} onChange={handleChange} /> Destacado
               </label>
             </div>
-            <Button type="submit" disabled={saving}>
+            <Button type="submit" disabled={saving} className="w-full mt-4">
               {saving ? <span className="animate-spin mr-2">⏳</span> : null}
               {saving ? "Guardando..." : "Guardar Cambios"}
             </Button>
+            {saving === false && !formErrors.general && (
+              <div className="text-green-600 text-sm mt-2">Cambios guardados correctamente.</div>
+            )}
           </form>
         </CardContent>
       </Card>

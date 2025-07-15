@@ -214,15 +214,6 @@
 	color-scheme: dark;
 }
 
-.dark header {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
-}
-
 .dark .bg-white {
 	background: linear-gradient(
 		135deg,

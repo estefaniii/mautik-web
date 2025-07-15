@@ -1,5 +1,4 @@
 "use client"
-import { products } from "@/data/products"
 import { useFavorites } from "@/context/favorites-context"
 import ProductCard from "@/components/product-card"
 import { useCart } from "@/context/cart-context"
@@ -8,27 +7,24 @@ import { Badge } from "@/components/ui/badge"
 import { useState, useEffect } from "react"
 import { Star, ShoppingCart, Eye, Award, Flame, Box, Check } from "lucide-react"
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip"
+import type { Product } from "@/types/product"
 
-export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: number[] }) {
+export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: string[] }) {
   const { favorites } = useFavorites()
   const favoriteIds = favorites.map(f => f.id)
   const exclude = new Set([...(excludeIds || []), ...favoriteIds])
 
   // Obtener categorías del carrito
+  // TODO: Implementar fetch a la API para recomendaciones reales
   const carritoCategorias = Array.from(new Set(
-    products.filter(p => excludeIds.includes(p.id)).map(p => p.category)
+    // products.filter(p => excludeIds.includes(p.id)).map(p => p.category)
+    [] // Placeholder, will be replaced with API call
   ))
 
   // Recomendados: primero de la misma categoría, luego destacados, luego populares
-  let recomendadosCategoria = products.filter(
-    p => carritoCategorias.includes(p.category) && !exclude.has(p.id)
-  )
-  let recomendadosDestacados = products.filter(
-    p => p.featured && !exclude.has(p.id) && !carritoCategorias.includes(p.category)
-  )
-  let recomendadosPopulares = products
-    .filter(p => !exclude.has(p.id) && !carritoCategorias.includes(p.category) && !p.featured)
-    .sort((a, b) => b.rating - a.rating)
+  let recomendadosCategoria: any[] = [] // Placeholder, will be replaced with API call
+  let recomendadosDestacados: any[] = [] // Placeholder, will be replaced with API call
+  let recomendadosPopulares: any[] = [] // Placeholder, will be replaced with API call
 
   let recommended = [
     ...recomendadosCategoria,
@@ -87,7 +83,7 @@ export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: 
           const [added, setAdded] = useState(false)
           const handleAddToCart = () => {
             if (product.stock === 0) return
-            addToCart({ ...product, quantity: 1 })
+            addToCart({ ...product, quantity: 1, stock: product.stock, attributes: product.attributes || [] })
             toast({
               title: "Producto añadido",
               description: `${product.name} se ha añadido a tu carrito.`,
@@ -141,14 +137,18 @@ export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: 
               </div>
               {/* Rating como estrellas */}
               <div className="absolute bottom-4 right-4 z-10 flex items-center gap-1 bg-white/80 dark:bg-gray-900/80 px-2 py-1 rounded-lg shadow font-sans">
-                {[...Array(5)].map((_, i) => (
-                  <Star
-                    key={i}
-                    size={14}
-                    className={i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"}
-                  />
-                ))}
-                <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>
+                {product.reviewCount && product.reviewCount > 0 ? (
+                  <>
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        size={14}
+                        className={i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"}
+                      />
+                    ))}
+                    <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>
+                  </>
+                ) : null}
               </div>
               <TooltipProvider>
                 <Tooltip>

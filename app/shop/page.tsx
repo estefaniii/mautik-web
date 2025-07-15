@@ -2,22 +2,18 @@
 
 import { useState, useEffect } from "react"
 import ProductCard from "@/components/product-card"
-import type { Product } from "@/data/products"
-import { Slider } from "@/components/ui/slider"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Label } from "@/components/ui/label"
+import type { Product } from "@/types/product"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { useSearchParams, useRouter } from "next/navigation"
-import { FilterX, SlidersHorizontal, Star } from "lucide-react"
+import { FilterX, SlidersHorizontal } from "lucide-react"
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
 import ShopFilters from "@/components/shop-filters"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // Tipo para productos de la API
 interface ApiProduct {
-  _id: string
+  id: string
   name: string
   description: string
   price: number
@@ -27,10 +23,9 @@ interface ApiProduct {
   stock: number
   averageRating?: number
   totalReviews?: number
-  isFeatured?: boolean
+  featured?: boolean
   isNew?: boolean
-  specifications?: Record<string, any>
-  sku?: string // <-- agregado
+  discount?: number
 }
 
 export default function ShopPage() {
@@ -38,43 +33,35 @@ export default function ShopPage() {
   const router = useRouter()
   const [allProducts, setAllProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
-  const [priceRange, setPriceRange] = useState([0, 500])
-  const [minMaxPrice, setMinMaxPrice] = useState<[number, number]>([0, 500])
-  const [showFilters, setShowFilters] = useState(false)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [sortOption, setSortOption] = useState("featured")
   const [searchText, setSearchText] = useState("")
-  const [minRating, setMinRating] = useState(0)
-  const [inStockOnly, setInStockOnly] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  // Detect if the collection is oceano-panameno
+  const collectionParam = searchParams.get("collection")
+  const isOceanoPanameno = collectionParam === "oceano-panameno"
 
   // Función para mapear productos de la API al formato esperado
   const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
     return {
-      id: parseInt(apiProduct._id.replace(/[^0-9]/g, '')) || Math.floor(Math.random() * 1000),
+      id: apiProduct.id,
       name: apiProduct.name,
       price: apiProduct.price,
       originalPrice: apiProduct.originalPrice,
       description: apiProduct.description,
-      longDescription: apiProduct.description,
-      images: apiProduct.images || ['/placeholder.svg'],
-      category: apiProduct.category,
+      images: Array.isArray(apiProduct.images) && apiProduct.images.length > 0 ? apiProduct.images : ['/placeholder.svg'],
+      category: typeof apiProduct.category === 'string' ? apiProduct.category : '',
       stock: apiProduct.stock,
       rating: apiProduct.averageRating || 4.5,
       reviewCount: apiProduct.totalReviews || 0,
-      featured: apiProduct.isFeatured || false,
+      featured: apiProduct.featured || false,
       isNew: apiProduct.isNew || false,
-      discount: apiProduct.originalPrice ? Math.round(((apiProduct.originalPrice - apiProduct.price) / apiProduct.originalPrice) * 100) : 0,
-      attributes: apiProduct.specifications ? Object.entries(apiProduct.specifications).map(([key, value]) => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        value: String(value)
-      })) : [],
-      details: apiProduct.specifications ? Object.entries(apiProduct.specifications).map(([key, value]) => ({
-        name: key.charAt(0).toUpperCase() + key.slice(1),
-        value: String(value)
-      })) : [],
-      sku: apiProduct.sku || '', // <-- usar directamente
+      discount: apiProduct.discount || 0,
+      attributes: [],
+      details: [],
+      sku: '',
     }
   }
 
@@ -87,7 +74,7 @@ export default function ShopPage() {
         const response = await fetch('/api/products')
         if (response.ok) {
           const data = await response.json()
-          const apiProducts: ApiProduct[] = data.products || data
+          const apiProducts: ApiProduct[] = Array.isArray(data) ? data : []
           const mappedProducts = apiProducts.map(mapApiProductToProduct)
           setAllProducts(mappedProducts)
           setFilteredProducts(mappedProducts)
@@ -95,6 +82,7 @@ export default function ShopPage() {
           setError('No se pudieron cargar los productos. Intenta de nuevo más tarde.')
         }
       } catch (error) {
+        console.error('Error fetching products:', error)
         setError('Error de conexión. Intenta de nuevo más tarde.')
       } finally {
         setLoading(false)
@@ -104,41 +92,29 @@ export default function ShopPage() {
     fetchProducts()
   }, [])
 
-  // Get all unique categories
-  const categories = Array.from(new Set(allProducts.map((product) => product.category)))
-
   // Initialize filters from URL params
   useEffect(() => {
     const categoryParam = searchParams.get("category")
-    const minPrice = searchParams.get("minPrice")
-    const maxPrice = searchParams.get("maxPrice")
+    const searchParam = searchParams.get("search")
     const sort = searchParams.get("sort")
 
     if (categoryParam) {
       setSelectedCategories(categoryParam.split(","))
     }
 
-    if (minPrice && maxPrice) {
-      setPriceRange([Number.parseInt(minPrice), Number.parseInt(maxPrice)])
+    if (searchParam) {
+      setSearchText(searchParam)
     }
 
     if (sort) {
       setSortOption(sort)
     }
+  }, [searchParams])
 
-    applyFilters()
-  }, [searchParams, allProducts])
-
-  // Update price range based on loaded products
+  // Apply filters when products or filters change
   useEffect(() => {
-    if (allProducts.length > 0) {
-      const prices = allProducts.map(p => p.price)
-      const min = Math.min(...prices)
-      const max = Math.max(...prices)
-      setMinMaxPrice([min, max])
-      setPriceRange([min, max])
-    }
-  }, [allProducts])
+    applyFilters()
+  }, [allProducts, selectedCategories, sortOption, searchText])
 
   // Apply all filters
   const applyFilters = () => {
@@ -150,26 +126,14 @@ export default function ShopPage() {
       result = result.filter(
         (product) =>
           product.name.toLowerCase().includes(text) ||
-          product.description.toLowerCase().includes(text)
+          product.description.toLowerCase().includes(text) ||
+          product.category.toLowerCase().includes(text)
       )
     }
 
     // Filter by category
     if (selectedCategories.length > 0) {
       result = result.filter((product) => selectedCategories.includes(product.category))
-    }
-
-    // Filter by price range
-    result = result.filter((product) => product.price >= priceRange[0] && product.price <= priceRange[1])
-
-    // Filter by rating
-    if (minRating > 0) {
-      result = result.filter((product) => (product.rating || 0) >= minRating)
-    }
-
-    // Filter by stock
-    if (inStockOnly) {
-      result = result.filter((product) => product.stock > 0)
     }
 
     // Apply sorting
@@ -198,126 +162,160 @@ export default function ShopPage() {
     setFilteredProducts(result)
   }
 
-  // Update URL with filters
-  const updateUrlWithFilters = () => {
-    const params = new URLSearchParams()
-
-    if (selectedCategories.length > 0) {
-      params.set("category", selectedCategories.join(","))
-    }
-
-    params.set("minPrice", priceRange[0].toString())
-    params.set("maxPrice", priceRange[1].toString())
-    params.set("sort", sortOption)
-
-    router.push(`/shop?${params.toString()}`)
-  }
-
-  // Handle category selection
   const handleCategoryChange = (category: string, checked: boolean) => {
     if (checked) {
-      setSelectedCategories([...selectedCategories, category])
+      setSelectedCategories(prev => [...prev, category])
     } else {
-      setSelectedCategories(selectedCategories.filter((c) => c !== category))
+      setSelectedCategories(prev => prev.filter(c => c !== category))
     }
   }
 
-  // Handle filter application
-  const handleApplyFilters = () => {
-    updateUrlWithFilters()
-    applyFilters()
-    setShowFilters(false)
-  }
-
-  // Reset all filters
   const resetFilters = () => {
     setSelectedCategories([])
-    setPriceRange([0, 500])
+    setSearchText("")
     setSortOption("featured")
-    router.push("/shop")
+  }
+
+  if (loading) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <Skeleton className="h-8 w-64 mb-4" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-[420px] animate-pulse flex flex-col justify-between p-4">
+              <div className="h-40 bg-gray-200 dark:bg-gray-800 rounded mb-4" />
+              <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-2/3 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/3 mb-4" />
+              <div className="flex gap-2">
+                <div className="h-8 w-24 bg-gray-200 dark:bg-gray-800 rounded" />
+                <div className="h-8 w-24 bg-gray-200 dark:bg-gray-800 rounded" />
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            Error al cargar productos
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <Button onClick={() => window.location.reload()}>
+            Intentar de nuevo
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="bg-gradient-to-b from-purple-50 to-white dark:from-gray-900 dark:to-gray-800 min-h-screen">
+    <div className={isOceanoPanameno ? "relative min-h-screen" : undefined}>
+      {isOceanoPanameno && (
+        <div className="absolute inset-0 -z-10">
+          <img src="/maar.png" alt="Fondo Océano Panameño" className="w-full h-full object-cover brightness-[0.7]" />
+        </div>
+      )}
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row justify-between items-start gap-8">
-          {/* Desktop & Tablet Filters (md: arriba, lg: izquierda) */}
-          <div className="hidden md:block w-full lg:w-1/4 mb-6 lg:mb-0 md:order-1 lg:order-none">
-            <ShopFilters
-              selectedCategories={selectedCategories}
-              onCategoryChange={handleCategoryChange}
-              inStockOnly={inStockOnly}
-              onStockChange={checked => setInStockOnly(!!checked)}
-              onReset={resetFilters}
-            />
-            <div className="w-full mt-4">
-              <Button onClick={handleApplyFilters} className="w-full bg-purple-800 hover:bg-purple-900">
-                Aplicar Filtros
-              </Button>
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Sidebar Filters */}
+          <div className="lg:w-64 flex-shrink-0">
+            <div className="sticky top-8">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  Filtros
+                </h2>
+                {(selectedCategories.length > 0 || searchText) && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={resetFilters}
+                    className="text-red-600 hover:text-red-700"
+                  >
+                    <FilterX className="h-4 w-4 mr-1" />
+                    Limpiar
+                  </Button>
+                )}
+              </div>
+              <ShopFilters
+                selectedCategories={selectedCategories}
+                onCategoryChange={handleCategoryChange}
+                onReset={resetFilters}
+              />
             </div>
           </div>
-
-          {/* Mobile Filters (siempre visibles en mobile) */}
-          <div className="block md:hidden w-full mb-6">
-            <ShopFilters
-              selectedCategories={selectedCategories}
-              onCategoryChange={handleCategoryChange}
-              inStockOnly={inStockOnly}
-              onStockChange={checked => setInStockOnly(!!checked)}
-              onReset={resetFilters}
-            />
-            <Button onClick={handleApplyFilters} className="w-full bg-purple-800 hover:bg-purple-900 mt-4">
-              Aplicar Filtros
-            </Button>
-          </div>
-
-          {/* Products Grid (md: abajo, lg: derecha) */}
-          <div className="w-full lg:w-3/4 md:order-2 lg:order-none">
-            <div className="flex justify-between items-center mb-8">
-              <h1 className="font-display text-3xl font-bold text-purple-900 dark:text-purple-200">Nuestra Tienda</h1>
+          {/* Main Content */}
+          <div className="flex-1">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                  Tienda
+                </h1>
+                <p className="text-gray-600 dark:text-gray-400">
+                  {filteredProducts.length} productos encontrados
+                </p>
+              </div>
               <div className="flex items-center gap-4">
-                <p className="text-gray-600 dark:text-gray-400">{filteredProducts.length} productos</p>
-                <Select
-                  value={sortOption}
-                  onValueChange={(value) => {
-                    setSortOption(value)
-                    setTimeout(() => {
-                      updateUrlWithFilters()
-                      applyFilters()
-                    }, 100)
-                  }}
-                >
-                  <SelectTrigger className="w-[220px]">
+                <Select value={sortOption} onValueChange={setSortOption}>
+                  <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Ordenar por" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="featured">Destacados</SelectItem>
-                    <SelectItem value="newest">Más Nuevos</SelectItem>
-                    <SelectItem value="price-asc">Precio: Menor a Mayor</SelectItem>
-                    <SelectItem value="price-desc">Precio: Mayor a Menor</SelectItem>
+                    <SelectItem value="newest">Más nuevos</SelectItem>
+                    <SelectItem value="price-asc">Precio: menor a mayor</SelectItem>
+                    <SelectItem value="price-desc">Precio: mayor a menor</SelectItem>
                     <SelectItem value="name-asc">Nombre: A-Z</SelectItem>
                     <SelectItem value="name-desc">Nombre: Z-A</SelectItem>
                   </SelectContent>
                 </Select>
+                {/* Mobile Filters */}
+                <Sheet>
+                  <SheetTrigger asChild>
+                    <Button variant="outline" className="lg:hidden">
+                      <SlidersHorizontal className="h-4 w-4 mr-2" />
+                      Filtros
+                    </Button>
+                  </SheetTrigger>
+                  <SheetContent side="left" className="w-[300px]">
+                    <div className="mt-6">
+                      <ShopFilters
+                        selectedCategories={selectedCategories}
+                        onCategoryChange={handleCategoryChange}
+                        onReset={resetFilters}
+                      />
+                    </div>
+                  </SheetContent>
+                </Sheet>
               </div>
             </div>
-
-            {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {[...Array(9)].map((_, i) => (
-                  <Skeleton key={i} className="h-72 w-full" />
+            {/* Products Grid */}
+            {filteredProducts.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {filteredProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-                {error && <div className="col-span-full text-center text-red-600 dark:text-red-400 py-16">{error}</div>}
-                {filteredProducts.length === 0 ? (
-                  <div className="col-span-full text-center text-gray-500 dark:text-gray-400 py-16">No se encontraron productos.</div>
-                ) : (
-                  filteredProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                  ))
-                )}
+              <div className="text-center py-12">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                  No se encontraron productos
+                </h3>
+                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                  Intenta ajustar los filtros o buscar algo diferente.
+                </p>
+                <Button onClick={resetFilters}>
+                  Limpiar filtros
+                </Button>
               </div>
             )}
           </div>

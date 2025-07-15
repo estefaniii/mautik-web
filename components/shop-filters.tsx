@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { products } from "@/data/products"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -19,7 +18,9 @@ export default function ShopFilters({
   onReset?: () => void
 }) {
   // Obtener categorías únicas
-  const categories = Array.from(new Set(products.map((product) => product.category)))
+  // Eliminar: const categories = Array.from(new Set(products.map((product) => product.category)))
+  // TODO: Implementar fetch a la API para filtros reales
+  const categories = ["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"]
 
   return (
     <aside className="w-full max-w-full lg:w-80 bg-gradient-to-br from-purple-50/80 to-white/90 dark:from-gray-900 dark:to-gray-800 rounded-2xl lg:rounded-3xl shadow-xl ring-1 ring-purple-100/40 dark:ring-gray-800/60 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8 mb-6 md:mb-0 animate-fade-in-up mx-auto lg:mx-0" aria-label="Filtros de productos" role="complementary">
@@ -73,13 +74,6 @@ export default function ShopFilters({
           />
           <Label htmlFor="inStockOnly" className="text-sm text-gray-700 dark:text-gray-200">Solo productos en stock</Label>
         </div>
-        <Button
-          onClick={onReset}
-          className="w-full bg-gradient-to-r from-purple-800 to-purple-600 dark:from-purple-900 dark:to-purple-700 hover:from-purple-900 hover:to-purple-800 dark:hover:from-purple-800 dark:hover:to-purple-900 text-white mt-4 rounded-xl shadow-lg font-bold focus:outline-none focus:ring-2 focus:ring-purple-400"
-          aria-label="Limpiar filtros"
-        >
-          Limpiar Filtros
-        </Button>
       </div>
     </aside>
   )

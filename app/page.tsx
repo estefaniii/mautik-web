@@ -8,13 +8,13 @@ import { Badge } from "@/components/ui/badge"
 import ProductCard from "@/components/product-card"
 import FeaturedCollection from "@/components/featured-collection"
 import { CategoryShowcase } from "@/components/category-showcase"
-import { Newsletter } from "@/components/newsletter"
+import MetaTags from "@/components/seo/meta-tags"
 import { ArrowRight } from "lucide-react"
-import type { Product } from "@/data/products"
+import type { Product } from "@/types/product"
 
 // Tipo para productos de la API
 interface ApiProduct {
-  _id: string
+  id: string
   name: string
   description: string
   price: number
@@ -27,6 +27,7 @@ interface ApiProduct {
   isFeatured?: boolean
   isNew?: boolean
   specifications?: Record<string, any>
+  discount?: number // Nuevo campo para el descuento
 }
 
 export default function HomePage() {
@@ -36,12 +37,11 @@ export default function HomePage() {
   // Función para mapear productos de la API al formato esperado
   const mapApiProductToProduct = (apiProduct: ApiProduct): Product => {
     return {
-      id: parseInt(apiProduct._id.replace(/[^0-9]/g, '')) || Math.floor(Math.random() * 1000),
+      id: apiProduct.id, // Usar directamente el ID de la API
       name: apiProduct.name,
       price: apiProduct.price,
       originalPrice: apiProduct.originalPrice,
       description: apiProduct.description,
-      longDescription: apiProduct.description,
       images: apiProduct.images || ['/placeholder.svg'],
       category: apiProduct.category,
       stock: apiProduct.stock,
@@ -49,7 +49,7 @@ export default function HomePage() {
       reviewCount: apiProduct.totalReviews || 0,
       featured: apiProduct.isFeatured || false,
       isNew: apiProduct.isNew || false,
-      discount: apiProduct.originalPrice ? Math.round(((apiProduct.originalPrice - apiProduct.price) / apiProduct.originalPrice) * 100) : 0,
+      discount: apiProduct.discount || 0, // Usar el descuento manual configurado
       attributes: apiProduct.specifications ? Object.entries(apiProduct.specifications).map(([key, value]) => ({
         name: key.charAt(0).toUpperCase() + key.slice(1),
         value: String(value)
@@ -90,84 +90,90 @@ export default function HomePage() {
   }, [])
 
   return (
-    <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <Image src="/fondonubes.jpg" alt="Joyería artesanal" fill className="object-cover" priority />
-          <div className="absolute inset-0 bg-black/60" />
-        </div>
-
-        <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-            Artesanías Únicas
-            <span className="block text-purple-300">Hechas a Mano</span>
-          </h1>
-          <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
-            Descubre piezas únicas de joyería, crochet, llaveros y más, elaboradas con amor y los mejores materiales. Cada artesanía cuenta una historia especial.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button asChild size="lg" className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-lg px-8 py-6 text-white border-none shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 dark:from-purple-400 dark:via-purple-500 dark:to-purple-600 dark:hover:from-purple-500 dark:hover:via-purple-600 dark:hover:to-purple-700">
-              <Link href="/shop">
-                Explorar Artesanías <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="text-white border-white hover:bg-white hover:text-purple-900 text-lg px-8 py-6 bg-transparent dark:bg-black/40 dark:border-white/80 dark:hover:bg-black/60 dark:text-white/90 dark:hover:text-white"
-            >
-              <Link href="/about">Nuestra Historia</Link>
-            </Button>
+    <>
+      <MetaTags 
+        title="Mautik - Artesanía Panameña"
+        description="Descubre la belleza de la artesanía panameña. Productos únicos hechos a mano con pasión y dedicación. Joyería, crochet, llaveros y más."
+        keywords="artesanía panameña, joyería artesanal, crochet, llaveros, pulseras, collares, anillos, aretes, handmade panamá, artesanía la chorrera"
+        image="/fondonubes.jpg"
+        url="/"
+      />
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <section className="relative h-screen flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 z-0">
+            <Image src="/fondonubes.jpg" alt="Joyería artesanal" fill className="object-cover" priority />
+            <div className="absolute inset-0 bg-black/60" />
           </div>
-        </div>
-      </section>
 
-      {/* Featured Products */}
-      <section className="py-16">
-        <div className="container mx-auto px-4">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-purple-900 dark:text-purple-100 mb-4">Productos Destacados</h2>
-            <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-              Descubre nuestras piezas más populares, seleccionadas especialmente para ti
+          <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+              Artesanías Únicas
+              <span className="block text-purple-300">Hechas a Mano</span>
+            </h1>
+            <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
+              Descubre piezas únicas de joyería, crochet, llaveros y más, elaboradas con amor y los mejores materiales. Cada artesanía cuenta una historia especial.
             </p>
-          </div>
-
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />
-              ))}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button asChild size="lg" className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-lg px-8 py-6 text-white border-none shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 dark:from-purple-400 dark:via-purple-500 dark:to-purple-600 dark:hover:from-purple-500 dark:hover:via-purple-600 dark:hover:to-purple-700">
+                <Link href="/shop">
+                  Explorar Artesanías <ArrowRight className="ml-2 h-5 w-5" />
+                </Link>
+              </Button>
+              <Button
+                asChild
+                variant="outline"
+                size="lg"
+                className="text-white border-white hover:bg-white hover:text-purple-900 text-lg px-8 py-6 bg-transparent dark:bg-black/40 dark:border-white/80 dark:hover:bg-black/60 dark:text-white/90 dark:hover:text-white"
+              >
+                <Link href="/about">Nuestra Historia</Link>
+              </Button>
             </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {featuredProducts.map((product) => (
-                <Suspense key={product.id} fallback={<div className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />}>
-                  <ProductCard product={product} />
-                </Suspense>
-              ))}
-            </div>
-          )}
-
-          <div className="text-center">
-            <Button asChild variant="outline" size="lg">
-              <Link href="/shop">
-                Ver Todos los Productos <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Featured Collection */}
-      <FeaturedCollection />
+        {/* Featured Products */}
+        <section className="py-16">
+          <div className="container mx-auto px-4">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold text-purple-900 dark:text-purple-100 mb-4">Productos Destacados</h2>
+              <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
+                Descubre nuestras piezas más populares, seleccionadas especialmente para ti
+              </p>
+            </div>
 
-      {/* Category Showcase */}
-      <CategoryShowcase />
+            {loading ? (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+                {featuredProducts.map((product) => (
+                  <Suspense key={product.id} fallback={<div className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />}>
+                    <ProductCard product={product} />
+                  </Suspense>
+                ))}
+              </div>
+            )}
 
-      {/* Newsletter */}
-      <Newsletter />
-    </div>
+            <div className="text-center">
+              <Button asChild variant="outline" size="lg">
+                <Link href="/shop">
+                  Ver Todos los Productos <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
+        {/* Featured Collection */}
+        <FeaturedCollection />
+
+        {/* Category Showcase */}
+        <CategoryShowcase />
+      </div>
+    </>
   )
 }

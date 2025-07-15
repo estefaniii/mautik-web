@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Camera, Upload, X, Image as ImageIcon, FileImage, Smartphone } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/context/auth-context"
 
 interface ProfileAvatarProps {
   currentImage?: string
@@ -29,6 +30,7 @@ export default function ProfileAvatar({
   const [showDialog, setShowDialog] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const { updateProfile } = useAuth();
 
   const sizeClasses = {
     sm: "h-16 w-16",
@@ -102,12 +104,22 @@ export default function ProfileAvatar({
       const data = await response.json()
 
       if (response.ok) {
-        onImageChange(data.url)
-        toast({
-          title: "✅ Imagen actualizada",
-          description: "Tu foto de perfil ha sido actualizada exitosamente.",
-        })
-        setShowDialog(false)
+        // Guardar avatar en backend y actualizar contexto
+        const result = await updateProfile({ avatar: data.url })
+        if (result.success) {
+          onImageChange(data.url)
+          toast({
+            title: "✅ Imagen actualizada",
+            description: "Tu foto de perfil ha sido actualizada exitosamente.",
+          })
+          setShowDialog(false)
+        } else {
+          toast({
+            title: "❌ Error al guardar avatar",
+            description: result.error || "No se pudo guardar el avatar en el perfil.",
+            variant: "destructive"
+          })
+        }
       } else {
         // Manejar errores específicos de Cloudinary
         if (data.error === 'Configuración de Cloudinary incompleta') {

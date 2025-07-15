@@ -1,15 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
-import Order from '@/models/Order';
-import Product from '@/models/Product';
-import { getUserFromRequest } from '@/lib/auth';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export async function GET(request: NextRequest) {
 	try {
-		await connectDB();
-		const orders = await Order.find({})
-			.populate('user')
-			.populate('items.product');
+		const orders = await prisma.order.findMany({
+			include: { user: true, items: true },
+		});
 		return NextResponse.json(orders);
 	} catch (error) {
 		console.error('Error fetching orders:', error);
@@ -22,67 +20,69 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
 	try {
-		await connectDB();
-		const user = getUserFromRequest(request);
-		if (!user) {
-			return NextResponse.json({ error: 'No autenticado' }, { status: 401 });
-		}
 		const data = await request.json();
-		// Validar datos mínimos
 		if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
 			return NextResponse.json(
 				{ error: 'No hay productos en el pedido.' },
 				{ status: 400 },
 			);
 		}
-		// Validar cada item
+		// Validar stock de cada producto
+		const productUpdates: { id: string; newStock: number }[] = [];
 		for (const item of data.items) {
-			if (
-				!item.product ||
-				typeof item.product !== 'string' ||
-				!item.product.match(/^[a-fA-F0-9]{24}$/)
-			) {
+			const product = await prisma.product.findUnique({
+				where: { id: item.productId },
+			});
+			if (!product || product.stock < item.quantity) {
 				return NextResponse.json(
-					{ error: 'ID de producto inválido en el pedido.' },
+					{ error: `Stock insuficiente para ${product?.name || 'producto'}` },
 					{ status: 400 },
 				);
 			}
-			if (typeof item.quantity !== 'number' || item.quantity <= 0) {
-				return NextResponse.json(
-					{ error: 'Cantidad inválida para un producto en el pedido.' },
-					{ status: 400 },
-				);
-			}
+			productUpdates.push({
+				id: item.productId,
+				newStock: product.stock - item.quantity,
+			});
 		}
-		// Descontar stock
-		for (const item of data.items) {
-			const product = await Product.findById(item.product);
-			if (!product) {
-				return NextResponse.json(
-					{ error: `Producto no encontrado: ${item.product}` },
-					{ status: 400 },
-				);
+		// Usar transacción para actualizar stock y crear pedido
+		const result = await prisma.$transaction(async (tx) => {
+			for (const update of productUpdates) {
+				await tx.product.update({
+					where: { id: update.id },
+					data: { stock: update.newStock },
+				});
 			}
-			if (product.stock < item.quantity) {
-				return NextResponse.json(
-					{ error: `Stock insuficiente para ${product.name}` },
-					{ status: 400 },
-				);
-			}
-			product.stock -= item.quantity;
-			await product.save();
-		}
-		// Crear pedido
-		const orderNumber = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-		const order = await Order.create({
-			...data,
-			user: user.id,
-			orderNumber,
-			status: 'pending',
-			isPaid: false,
-			isDelivered: false,
+			const order = await tx.order.create({
+				data: {
+					userId: data.userId,
+					items: {
+						create: data.items.map((item: any) => ({
+							productId: item.productId,
+							quantity: item.quantity,
+							price: item.price,
+						})),
+					},
+					status: data.paymentId && data.paymentMethod ? 'paid' : 'pending',
+					isPaid: !!(data.paymentId && data.paymentMethod),
+					isDelivered: false,
+					totalAmount: data.totalAmount,
+					shippingAddress: data.shippingAddress,
+					paymentMethod: data.paymentMethod || null,
+					paymentId: data.paymentId || null,
+					paidAt: data.paidAt
+						? new Date(data.paidAt)
+						: data.paymentId && data.paymentMethod
+						? new Date()
+						: null,
+				},
+				include: { items: true },
+			});
+			return order;
 		});
-		return NextResponse.json({ message: 'Pedido creado exitosamente', order });
+		return NextResponse.json({
+			message: 'Pedido creado exitosamente',
+			order: result,
+		});
 	} catch (error) {
 		console.error('Error creando pedido:', error);
 		return NextResponse.json(

@@ -12,9 +12,9 @@ import { useAuth } from "@/context/auth-context"
 import Link from "next/link"
 
 interface Review {
-  _id: string
+  id: string
   user: {
-    _id: string
+    id: string
     name: string
     avatar?: string
   }
@@ -85,6 +85,7 @@ export default function ProductReviews({
         })
       }
     } catch (error) {
+      const errorToUse = error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
       toast({
         title: "Error",
         description: "Error de conexión al cargar reseñas",
@@ -114,7 +115,7 @@ export default function ProductReviews({
   }
 
   const handleEditReview = (review: Review) => {
-    setEditingReview(review._id)
+    setEditingReview(review.id)
     setNewReview({
       rating: review.rating,
       title: review.title,
@@ -154,6 +155,7 @@ export default function ProductReviews({
         })
       }
     } catch (error) {
+      const errorToUse = error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
       toast({
         title: "Error",
         description: "Error de conexión al eliminar reseña",
@@ -238,6 +240,7 @@ export default function ProductReviews({
         })
       }
     } catch (error) {
+      const errorToUse = error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
       toast({
         title: "Error",
         description: "Error de conexión al enviar reseña",
@@ -268,8 +271,6 @@ export default function ProductReviews({
     })
   }
 
-  const userReview = reviews.find(review => review.user._id === user?.id)
-
   if (loading) {
     return (
       <div className="space-y-8">
@@ -280,6 +281,8 @@ export default function ProductReviews({
       </div>
     )
   }
+
+  const userReview = reviews.find(review => review.user.id === user?.id)
 
   return (
     <div className="space-y-8">
@@ -359,7 +362,7 @@ export default function ProductReviews({
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => handleDeleteReview(userReview._id)}
+                onClick={() => handleDeleteReview(userReview.id)}
                 className="border-red-600 text-red-600 hover:bg-red-50 dark:border-red-400 dark:text-red-400 dark:hover:bg-red-900/20"
               >
                 <Trash2 className="h-4 w-4 mr-1" />
@@ -559,9 +562,9 @@ export default function ProductReviews({
           </div>
         ) : (
           reviews
-            .filter(review => !user || review.user._id !== user.id) // No mostrar la reseña del usuario actual en la lista
+            .filter(review => !user || review.user.id !== user.id) // No mostrar la reseña del usuario actual en la lista
             .map((review) => (
-            <div key={review._id} className="border-b border-gray-200 dark:border-gray-700 pb-6 last:border-b-0">
+            <div key={review.id} className="border-b border-gray-200 dark:border-gray-700 pb-6 last:border-b-0">
               <div className="flex items-start space-x-4">
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={review.user.avatar} />

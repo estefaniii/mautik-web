@@ -40,13 +40,16 @@ import {
   CreditCard,
   LogOut,
   Moon,
-  Sun
+  Sun,
+  Pencil,
+  Home
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import AuthGuard from "@/components/auth-guard"
 import Link from "next/link"
 import ProductCard from "@/components/product-card"
 import ProfileAvatar from "@/components/profile-avatar"
+import AddressForm, { Address } from "@/components/address-form"
 
 interface UserSettings {
   emailNotifications: boolean
@@ -64,7 +67,6 @@ export default function ProfilePage() {
   
   // Profile editing states
   const [isEditing, setIsEditing] = useState(false)
-  const [isChangingPassword, setIsChangingPassword] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showPasswordDialog, setShowPasswordDialog] = useState(false)
   
@@ -102,25 +104,26 @@ export default function ProfilePage() {
     confirm: false
   })
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [orders, setOrders] = useState<any[]>([])
+  const [loadingOrders, setLoadingOrders] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
+  const [phoneError, setPhoneError] = useState<string | null>(null)
 
   useEffect(() => {
     if (user) {
-      setLoadingOrders(true);
+      setLoadingOrders(true)
       fetch('/api/orders')
         .then(res => res.json())
         .then(data => {
-          // Filtrar solo los pedidos del usuario autenticado
           const userOrders = Array.isArray(data)
-            ? data.filter((order: any) => order.user && (order.user._id === user.id || order.user === user.id))
-            : [];
-          setOrders(userOrders);
+            ? data.filter((order: any) => order.user && (order.user.id === user.id || order.user === user.id))
+            : []
+          setOrders(userOrders)
         })
         .catch(() => setOrders([]))
-        .finally(() => setLoadingOrders(false));
+        .finally(() => setLoadingOrders(false))
     }
-  }, [user]);
+  }, [user])
 
   useEffect(() => {
     if (user) {
@@ -128,25 +131,23 @@ export default function ProfilePage() {
         name: user.name || "",
         email: user.email || "",
         phone: user.phone || "",
-        address: user.address || {
-          street: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          country: ""
+        address: {
+          street: user.address?.street || "",
+          city: user.address?.city || "",
+          state: user.address?.state || "",
+          zipCode: user.address?.zipCode || "",
+          country: user.address?.country || ""
         }
       })
     }
   }, [user])
 
-  // Cargar modo oscuro desde localStorage
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('darkMode')
     if (savedDarkMode !== null) {
       const isDarkMode = savedDarkMode === 'true'
       setSettings(prev => ({ ...prev, darkMode: isDarkMode }))
       
-      // Aplicar el tema al documento
       if (isDarkMode) {
         document.documentElement.classList.add('dark')
       } else {
@@ -162,62 +163,90 @@ export default function ProfilePage() {
           title: "❌ Error",
           description: "Usuario no autenticado",
           variant: "destructive"
-        });
-        return;
+        })
+        return
       }
 
-      // Validar campos requeridos
       if (!editForm.name.trim() || !editForm.email.trim()) {
         toast({
           title: "❌ Error",
           description: "Nombre y email son campos obligatorios",
           variant: "destructive"
-        });
-        return;
+        })
+        return
       }
 
-      // Validar formato de email
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(editForm.email)) {
         toast({
           title: "❌ Error",
           description: "Formato de email inválido",
           variant: "destructive"
-        });
-        return;
+        })
+        return
       }
 
-      // Preparar datos para actualizar
+      setPhoneError(null)
+      if (editForm.phone.trim()) {
+        const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/
+        if (!phoneRegex.test(editForm.phone.trim())) {
+          setPhoneError("Número de teléfono inválido. Usa solo dígitos, espacios, guiones, paréntesis y opcionalmente el prefijo +.")
+          toast({
+            title: "❌ Error",
+            description: "Número de teléfono inválido. Usa solo dígitos, espacios, guiones, paréntesis y opcionalmente el prefijo +.",
+            variant: "destructive"
+          })
+          return
+        }
+      }
+
+      const { street, city, state, zipCode, country } = editForm.address
+      if (!street.trim() || !city.trim() || !state.trim() || !zipCode.trim() || !country.trim()) {
+        toast({
+          title: "❌ Error",
+          description: "Todos los campos de dirección son obligatorios",
+          variant: "destructive"
+        })
+        return
+      }
+
       const updateData = {
         name: editForm.name.trim(),
         email: editForm.email.trim(),
         phone: editForm.phone.trim(),
-        address: editForm.address
-      };
+        address: {
+          street: street.trim(),
+          city: city.trim(),
+          state: state.trim(),
+          zipCode: zipCode.trim(),
+          country: country.trim()
+        }
+      }
 
-      // Llamar a la API para actualizar el perfil
-      const result = await updateProfile(updateData);
-
-      if (result.success) {
+      setIsSaving(true)
+      const result = await updateProfile(updateData)
+      setIsSaving(false)
+      if (result && !result.error) {
         toast({
-          title: "✅ Perfil actualizado",
-          description: "Tu información ha sido actualizada exitosamente.",
-        });
-        setIsEditing(false);
+          title: "✅ Guardado",
+          description: "Perfil actualizado exitosamente",
+          variant: "default"
+        })
+        setIsEditing(false)
       } else {
         toast({
           title: "❌ Error",
-          description: result.error || "No se pudo actualizar el perfil. Inténtalo de nuevo.",
+          description: result?.error || "No se pudo actualizar el perfil",
           variant: "destructive"
-        });
+        })
       }
     } catch (error) {
-      console.error('Error saving profile:', error);
+      setIsSaving(false)
       toast({
         title: "❌ Error",
-        description: "Error de conexión al actualizar el perfil",
+        description: "Error inesperado al guardar el perfil",
         variant: "destructive"
-      });
+      })
     }
   }
 
@@ -227,8 +256,8 @@ export default function ProfilePage() {
         title: "❌ Error",
         description: "Las contraseñas no coinciden.",
         variant: "destructive"
-      });
-      return;
+      })
+      return
     }
     
     if (passwordForm.newPassword.length < 6) {
@@ -236,8 +265,8 @@ export default function ProfilePage() {
         title: "❌ Error",
         description: "La contraseña debe tener al menos 6 caracteres.",
         variant: "destructive"
-      });
-      return;
+      })
+      return
     }
 
     try {
@@ -246,11 +275,10 @@ export default function ProfilePage() {
           title: "❌ Error",
           description: "Usuario no autenticado",
           variant: "destructive"
-        });
-        return;
+        })
+        return
       }
 
-      // Llamar a la API para cambiar la contraseña
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
         headers: {
@@ -261,42 +289,41 @@ export default function ProfilePage() {
           newPassword: passwordForm.newPassword,
           userId: user?.id
         }),
-      });
+      })
 
-      const data = await response.json();
-      const result = { success: response.ok, error: data.error };
+      const data = await response.json()
+      const result = { success: response.ok, error: data.error }
 
       if (result.success) {
         toast({
           title: "✅ Contraseña actualizada",
           description: "Tu contraseña ha sido cambiada exitosamente.",
-        });
-        setShowPasswordDialog(false);
+        })
+        setShowPasswordDialog(false)
         setPasswordForm({
           currentPassword: "",
           newPassword: "",
           confirmPassword: ""
-        });
+        })
       } else {
         toast({
           title: "❌ Error",
           description: result.error || "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
           variant: "destructive"
-        });
+        })
       }
     } catch (error) {
-      console.error('Error changing password:', error);
+      console.error('Error changing password:', error)
       toast({
         title: "❌ Error",
         description: "Error de conexión al cambiar la contraseña",
         variant: "destructive"
-      });
+      })
     }
   }
 
   const handleDeleteAccount = async () => {
     try {
-      // Simular eliminación de cuenta
       await new Promise(resolve => setTimeout(resolve, 2000))
       
       toast({
@@ -305,7 +332,7 @@ export default function ProfilePage() {
       })
       logout()
     } catch (error) {
-    toast({
+      toast({
         title: "❌ Error",
         description: "No se pudo eliminar la cuenta. Inténtalo de nuevo.",
         variant: "destructive"
@@ -326,18 +353,15 @@ export default function ProfilePage() {
           zipCode: "",
           country: ""
         }
-    })
+      })
     }
     setIsEditing(false)
   }
 
   const handleImageChange = async (imageUrl: string) => {
     try {
-      // Aquí puedes integrar con tu API para actualizar la imagen del usuario
-      // Por ahora simulamos la actualización
       await new Promise(resolve => setTimeout(resolve, 1000))
       
-      // Actualizar el estado del usuario con la nueva imagen usando el contexto
       const result = await updateProfile({ avatar: imageUrl })
       
       if (result.success) {
@@ -353,7 +377,7 @@ export default function ProfilePage() {
         })
       }
     } catch (error) {
-    toast({
+      toast({
         title: "❌ Error",
         description: "No se pudo actualizar la imagen. Inténtalo de nuevo.",
         variant: "destructive"
@@ -389,6 +413,37 @@ export default function ProfilePage() {
     })
   }
 
+  const handleSaveAddress = async (address: Address) => {
+    try {
+      if (!user) return
+      const updateData = {
+        ...editForm,
+        address
+      }
+      const result = await updateProfile(updateData)
+      if (result && !result.error) {
+        toast({
+          title: "✅ Guardado",
+          description: "Dirección actualizada exitosamente",
+          variant: "default"
+        })
+        setIsEditing(false)
+      } else {
+        toast({
+          title: "❌ Error",
+          description: result?.error || "No se pudo actualizar la dirección",
+          variant: "destructive"
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "❌ Error",
+        description: "Error inesperado al guardar la dirección",
+        variant: "destructive"
+      })
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
@@ -405,67 +460,65 @@ export default function ProfilePage() {
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
         <div className="container mx-auto px-4 py-8">
           <div className="max-w-6xl mx-auto">
-          {/* Header */}
             <div className="mb-8 text-center">
               <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Cuenta</h1>
               <p className="text-gray-600 text-lg">Gestiona tu perfil, pedidos y preferencias</p>
-          </div>
+            </div>
 
             <Tabs defaultValue="profile" className="space-y-8">
-              <TabsList className="grid w-full grid-cols-5 bg-white shadow-lg">
+              <TabsList className="grid w-full grid-cols-6 bg-white shadow-lg">
                 <TabsTrigger value="profile" className="flex items-center gap-2">
-                <User className="h-4 w-4" />
+                  <User className="h-4 w-4" />
                   Perfil
-              </TabsTrigger>
+                </TabsTrigger>
                 <TabsTrigger value="orders" className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4" />
+                  <ShoppingBag className="h-4 w-4" />
                   Pedidos
-              </TabsTrigger>
+                </TabsTrigger>
                 <TabsTrigger value="favorites" className="flex items-center gap-2">
-                <Heart className="h-4 w-4" />
+                  <Heart className="h-4 w-4" />
                   Favoritos
-              </TabsTrigger>
+                </TabsTrigger>
                 <TabsTrigger value="settings" className="flex items-center gap-2">
-                <Settings className="h-4 w-4" />
+                  <Settings className="h-4 w-4" />
                   Configuración
                 </TabsTrigger>
                 <TabsTrigger value="security" className="flex items-center gap-2">
                   <Shield className="h-4 w-4" />
                   Seguridad
-              </TabsTrigger>
-            </TabsList>
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="profile" className="space-y-6">
+              <TabsContent value="profile" className="space-y-6">
                 <Card className="shadow-lg border-0">
                   <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
-                  <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex items-center justify-between">
+                      <div>
                         <CardTitle className="text-white">Información Personal</CardTitle>
                         <CardDescription className="text-purple-100">
-                        Actualiza tu información personal y de contacto
-                      </CardDescription>
-                    </div>
-                    {!isEditing ? (
-                        <Button onClick={() => setIsEditing(true)} variant="secondary" className="bg-white/20 hover:bg-white/30">
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar
-                      </Button>
-                    ) : (
-                        <div className="flex gap-2">
-                          <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700">
-                          <Save className="h-4 w-4 mr-2" />
-                            Guardar
-                        </Button>
-                          <Button onClick={handleCancel} variant="secondary" size="sm">
-                          <X className="h-4 w-4 mr-2" />
-                          Cancelar
-                        </Button>
+                          Actualiza tu información personal y de contacto
+                        </CardDescription>
                       </div>
-                    )}
-                  </div>
-                </CardHeader>
+                      {!isEditing ? (
+                        <Button onClick={() => setIsEditing(true)} variant="secondary" className="bg-white/20 hover:bg-white/30">
+                          <Edit className="h-4 w-4 mr-2" />
+                          Editar
+                        </Button>
+                      ) : (
+                        <div className="flex gap-2">
+                          <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
+                            <Save className="h-4 w-4 mr-2" />
+                            {isSaving ? "Guardando..." : "Guardar"}
+                          </Button>
+                          <Button onClick={handleCancel} variant="secondary" size="sm">
+                            <X className="h-4 w-4 mr-2" />
+                            Cancelar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  </CardHeader>
                   <CardContent className="p-6">
-                    {/* Avatar Section */}
                     <div className="flex items-center space-x-6 mb-8">
                       <ProfileAvatar
                         currentImage={user?.avatar}
@@ -492,136 +545,91 @@ export default function ProfilePage() {
                             Miembro desde {getMemberSince()}
                           </Badge>
                         </div>
+                      </div>
                     </div>
-                  </div>
 
                     <Separator className="my-6" />
 
-                    {/* Form Fields */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="space-y-2">
                         <Label htmlFor="name" className="text-sm font-medium">Nombre completo</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input
-                          id="name"
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            id="name"
                             value={editForm.name}
                             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                          disabled={!isEditing}
+                            disabled={!isEditing}
                             className="pl-10 h-12"
-                        />
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input
-                          id="email"
-                          type="email"
+                        <div className="relative">
+                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            id="email"
+                            type="email"
                             value={editForm.email}
                             onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                          disabled={!isEditing}
+                            disabled={!isEditing}
                             className="pl-10 h-12"
-                        />
+                          />
+                        </div>
                       </div>
-                    </div>
 
-                    <div className="space-y-2">
+                      <div className="space-y-2">
                         <Label htmlFor="phone" className="text-sm font-medium">Teléfono</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                        <Input
-                          id="phone"
+                        <div className="relative">
+                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                          <Input
+                            id="phone"
                             value={editForm.phone}
-                            onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                          disabled={!isEditing}
+                            onChange={(e) => {
+                              setEditForm({ ...editForm, phone: e.target.value })
+                              setPhoneError(null)
+                            }}
+                            disabled={!isEditing}
                             className="pl-10 h-12"
-                        />
+                          />
+                          {phoneError && (
+                            <div className="text-red-500 text-xs mt-1">{phoneError}</div>
+                          )}
                         </div>
                       </div>
                     </div>
 
-                    {/* Address Section */}
                     <div className="space-y-4 mt-8">
                       <div className="flex items-center space-x-2">
                         <MapPin className="h-5 w-5 text-purple-600" />
                         <h4 className="font-semibold text-lg">Dirección de Envío</h4>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="street" className="text-sm font-medium">Calle y número</Label>
-                          <Input
-                            id="street"
-                            value={editForm.address.street}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              address: { ...editForm.address, street: e.target.value }
-                            })}
-                            disabled={!isEditing}
-                            className="h-12"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="city" className="text-sm font-medium">Ciudad</Label>
-                          <Input
-                            id="city"
-                            value={editForm.address.city}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              address: { ...editForm.address, city: e.target.value }
-                            })}
-                            disabled={!isEditing}
-                            className="h-12"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="state" className="text-sm font-medium">Estado/Provincia</Label>
-                          <Input
-                            id="state"
-                            value={editForm.address.state}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              address: { ...editForm.address, state: e.target.value }
-                            })}
-                            disabled={!isEditing}
-                            className="h-12"
-                          />
-                        </div>
-                    <div className="space-y-2">
-                          <Label htmlFor="zipCode" className="text-sm font-medium">Código Postal</Label>
-                          <Input
-                            id="zipCode"
-                            value={editForm.address.zipCode}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              address: { ...editForm.address, zipCode: e.target.value }
-                            })}
-                            disabled={!isEditing}
-                            className="h-12"
-                          />
-                        </div>
-                        <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor="country" className="text-sm font-medium">País</Label>
-                        <Input
-                            id="country"
-                            value={editForm.address.country}
-                            onChange={(e) => setEditForm({
-                              ...editForm,
-                              address: { ...editForm.address, country: e.target.value }
-                            })}
-                          disabled={!isEditing}
-                            className="h-12"
+                      {isEditing ? (
+                        <AddressForm
+                          initialAddress={editForm.address}
+                          onSave={async (address: Address) => {
+                            await handleSaveAddress(address)
+                          }}
+                          loading={isLoading}
+                          disabled={isLoading}
                         />
-                      </div>
+                      ) : (
+                        <div className="space-y-1">
+                          <div><strong>Calle:</strong> {user?.address?.street || "-"}</div>
+                          <div><strong>Ciudad:</strong> {user?.address?.city || "-"}</div>
+                          <div><strong>Provincia/Estado:</strong> {user?.address?.state || "-"}</div>
+                          <div><strong>Código Postal:</strong> {user?.address?.zipCode || "-"}</div>
+                          <div><strong>País:</strong> {user?.address?.country || "-"}</div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="orders" className="space-y-6">
+              <TabsContent value="orders" className="space-y-6">
                 <Card className="shadow-lg border-0">
                   <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
                     <CardTitle className="flex items-center text-white">
@@ -630,8 +638,8 @@ export default function ProfilePage() {
                     </CardTitle>
                     <CardDescription className="text-green-100">
                       Historial de todos tus pedidos y su estado
-                  </CardDescription>
-                </CardHeader>
+                    </CardDescription>
+                  </CardHeader>
                   <CardContent className="p-6">
                     {loadingOrders ? (
                       <div className="text-center py-12">
@@ -641,10 +649,10 @@ export default function ProfilePage() {
                     ) : orders.length > 0 ? (
                       <div className="space-y-6">
                         {orders.map((order) => (
-                          <div key={order._id} className="border rounded-lg p-4 bg-gray-50">
+                          <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
                             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
                               <div>
-                                <span className="font-semibold">Pedido:</span> {order.orderNumber || order._id}
+                                <span className="font-semibold">Pedido:</span> {order.orderNumber || order.id}
                                 <span className="ml-4 font-semibold">Fecha:</span> {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
                               </div>
                               <div>
@@ -702,9 +710,9 @@ export default function ProfilePage() {
                     )}
                   </CardContent>
                 </Card>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="favorites" className="space-y-6">
+              <TabsContent value="favorites" className="space-y-6">
                 <Card className="shadow-lg border-0">
                   <CardHeader className="bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-t-lg">
                     <CardTitle className="flex items-center text-white">
@@ -713,16 +721,16 @@ export default function ProfilePage() {
                     </CardTitle>
                     <CardDescription className="text-pink-100">
                       Productos que has marcado como favoritos
-                      </CardDescription>
-                </CardHeader>
+                    </CardDescription>
+                  </CardHeader>
                   <CardContent className="p-6">
                     {favorites && favorites.length > 0 ? (
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                         {getFavoriteProducts().map((product) => (
                           <ProductCard key={product.id} product={product} />
                         ))}
-                    </div>
-                  ) : (
+                      </div>
+                    ) : (
                       <div className="text-center py-12">
                         <div className="bg-pink-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
                           <Heart className="h-12 w-12 text-pink-600" />
@@ -737,13 +745,13 @@ export default function ProfilePage() {
                             Explorar Productos
                           </Button>
                         </Link>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </TabsContent>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
 
-            <TabsContent value="settings" className="space-y-6">
+              <TabsContent value="settings" className="space-y-6">
                 <Card className="shadow-lg border-0">
                   <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
                     <CardTitle className="flex items-center text-white">
@@ -784,38 +792,6 @@ export default function ProfilePage() {
                       <Switch
                         checked={settings.smsNotifications}
                         onCheckedChange={(checked) => setSettings({...settings, smsNotifications: checked})}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-purple-100 p-2 rounded-lg">
-                          <Mail className="h-5 w-5 text-purple-600" />
-                        </div>
-                      <div>
-                          <h4 className="font-semibold">Emails de marketing</h4>
-                          <p className="text-sm text-gray-600">Recibe ofertas y novedades</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={settings.marketingEmails}
-                        onCheckedChange={(checked) => setSettings({...settings, marketingEmails: checked})}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-orange-100 p-2 rounded-lg">
-                          <Package className="h-5 w-5 text-orange-600" />
-                        </div>
-                      <div>
-                          <h4 className="font-semibold">Actualizaciones de pedidos</h4>
-                          <p className="text-sm text-gray-600">Seguimiento en tiempo real</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={settings.orderUpdates}
-                        onCheckedChange={(checked) => setSettings({...settings, orderUpdates: checked})}
                       />
                     </div>
 
@@ -965,7 +941,7 @@ export default function ProfilePage() {
                         <div className="bg-red-100 p-2 rounded-lg">
                           <Trash2 className="h-5 w-5 text-red-600" />
                         </div>
-                      <div>
+                        <div>
                           <h4 className="font-semibold">Eliminar cuenta</h4>
                           <p className="text-sm text-gray-600">Elimina permanentemente tu cuenta</p>
                         </div>
@@ -1000,7 +976,7 @@ export default function ProfilePage() {
                         <div className="bg-gray-100 p-2 rounded-lg">
                           <LogOut className="h-5 w-5 text-gray-600" />
                         </div>
-                      <div>
+                        <div>
                           <h4 className="font-semibold">Cerrar sesión</h4>
                           <p className="text-sm text-gray-600">Cierra tu sesión actual</p>
                         </div>
@@ -1011,11 +987,11 @@ export default function ProfilePage() {
                     </div>
                   </CardContent>
                 </Card>
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+            </Tabs>
+          </div>
         </div>
       </div>
-    </div>
     </AuthGuard>
   )
 }

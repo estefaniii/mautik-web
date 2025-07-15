@@ -122,7 +122,6 @@ export default function PrivacyPolicyPage() {
                 </p>
                 <div className="bg-purple-50 rounded-lg p-4">
                   <p><strong>Email:</strong> mautik.official@gmail.com</p>
-                  <p><strong>Teléfono:</strong> +507 6778 2931</p>
                   <p><strong>Dirección:</strong> La Chorrera, Panama Oeste, Panamá</p>
                 </div>
               </div>

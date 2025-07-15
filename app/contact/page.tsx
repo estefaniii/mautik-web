@@ -4,7 +4,7 @@ import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Mail, Phone, MapPin, Send } from "lucide-react"
+import { Mail, MapPin, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 
 export default function ContactPage() {
@@ -147,13 +147,6 @@ export default function ContactPage() {
                   </div>
                 </div>
                 <div className="flex items-center">
-                  <Phone className="mr-3 h-6 w-6 text-purple-800 dark:text-purple-300" />
-                  <div>
-                    <h3 className="font-semibold text-gray-900 dark:text-gray-100">Teléfono</h3>
-                    <p className="text-gray-600 dark:text-gray-400">+507 6778 2931</p>
-                  </div>
-                </div>
-                <div className="flex items-center">
                   <Mail className="mr-3 h-6 w-6 text-purple-800 dark:text-purple-300" />
                   <div>
                     <h3 className="font-semibold text-gray-900 dark:text-gray-100">Email</h3>
@@ -179,17 +172,6 @@ export default function ContactPage() {
                   <span className="font-semibold dark:text-gray-100">Cerrado</span>
                 </div>
               </div>
-            </div>
-
-            <div className="bg-purple-100 dark:bg-gray-700 rounded-lg p-6">
-              <h3 className="text-lg font-semibold text-purple-900 dark:text-purple-200 mb-3">¿Necesitas ayuda rápida?</h3>
-              <p className="text-gray-700 dark:text-gray-300 mb-4">
-                Para consultas urgentes o pedidos especiales, puedes contactarnos directamente por WhatsApp.
-              </p>
-              <Button className="w-full bg-green-600 hover:bg-green-700">
-                <Phone className="mr-2 h-4 w-4" />
-                Contactar por WhatsApp
-              </Button>
             </div>
           </div>
         </div>

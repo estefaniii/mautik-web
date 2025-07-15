@@ -101,6 +101,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (response.ok) {
         setUser(data.user)
         setIsAuthenticated(true)
+        if (data.token) {
+          localStorage.setItem('auth-token', data.token)
+        }
         return { success: true }
       } else {
         return { success: false, error: data.error }

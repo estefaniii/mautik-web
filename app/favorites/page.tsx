@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/select"
 import Link from "next/link"
 import AuthGuard from "@/components/auth-guard"
+import type { Product } from "@/types/product"
 
 type SortOption = "name-asc" | "name-desc" | "price-asc" | "price-desc" | "rating-desc" | "added-desc"
 type ViewMode = "grid" | "list"
@@ -79,10 +80,11 @@ export default function FavoritesPage() {
     }
   })
 
-  const handleAddToCart = (product: any) => {
+  const handleAddToCart = (product: Product) => {
     addToCart({
       ...product,
       quantity: 1,
+      attributes: product.attributes || [],
     })
 
     toast({
@@ -261,8 +263,12 @@ export default function FavoritesPage() {
                               {product.category}
                             </span>
                             <div className="flex items-center">
-                              <Star className="h-3 w-3 text-yellow-400 fill-current mr-1" />
-                              <span>{product.rating} ({product.reviewCount})</span>
+                              {product.reviewCount && product.reviewCount > 0 ? (
+                                <>
+                                  <Star className="h-3 w-3 text-yellow-400 fill-current mr-1" />
+                                  <span>{product.rating} ({product.reviewCount})</span>
+                                </>
+                              ) : null}
                             </div>
                           </div>
                         </div>

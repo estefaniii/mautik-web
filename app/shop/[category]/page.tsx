@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation"
-import { products } from "@/data/products"
 import ProductCard from "@/components/product-card"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
@@ -11,6 +10,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb"
+import type { Product } from "@/types/product"
 
 interface CategoryPageProps {
   params: {
@@ -23,7 +23,9 @@ export default function CategoryPage({ params }: CategoryPageProps) {
   const categoryName = decodeURIComponent(params.category)
 
   // Get all products in this category
-  const categoryProducts = products.filter((product) => product.category.toLowerCase() === categoryName.toLowerCase())
+  // Eliminar: const categoryProducts = products.filter((product) => product.category.toLowerCase() === categoryName.toLowerCase())
+  // TODO: Implementar fetch a la API para productos por categoría reales
+  const categoryProducts: Product[] = [] // Placeholder for now
 
   // If no products found, return 404
   if (categoryProducts.length === 0) {
@@ -64,7 +66,7 @@ export default function CategoryPage({ params }: CategoryPageProps) {
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {categoryProducts.map((product) => (
+          {categoryProducts.map((product: Product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>

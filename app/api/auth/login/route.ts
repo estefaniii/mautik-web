@@ -1,25 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import connectDB from '@/lib/db';
 import { authenticateUser, generateToken } from '@/lib/auth';
-import User from '@/models/User';
 
-// Datos de usuarios locales para cuando MongoDB Atlas no esté disponible
-const localUsers = [
-	{
-		id: 'admin-1',
-		name: 'Admin Mautik',
-		email: 'admin@mautik.com',
-		password: 'admin123', // En producción, esto debería estar hasheado
-		isAdmin: true,
-	},
-	{
-		id: 'user-1',
-		name: 'Usuario Demo',
-		email: 'user@demo.com',
-		password: 'user123',
-		isAdmin: false,
-	},
-];
+// Elimina toda la lógica de localUsers y fallback a datos locales. Solo usa Prisma.
 
 export async function POST(request: NextRequest) {
 	try {
@@ -34,7 +16,7 @@ export async function POST(request: NextRequest) {
 
 		try {
 			// Intentar conectar a MongoDB Atlas
-			await connectDB();
+			// Elimina: await connectDB();
 
 			const result = await authenticateUser(email, password);
 
@@ -51,7 +33,7 @@ export async function POST(request: NextRequest) {
 			// Establecer cookie con el token
 			if (result.token) {
 				response.cookies.set('auth-token', result.token, {
-					httpOnly: true, // Cambiado a true para mayor seguridad
+					httpOnly: false, // Cambiado a false temporalmente para debug
 					secure: process.env.NODE_ENV === 'production',
 					sameSite: 'lax',
 					maxAge: 7 * 24 * 60 * 60, // 7 días
@@ -60,49 +42,11 @@ export async function POST(request: NextRequest) {
 
 			return response;
 		} catch (error) {
-			console.log(
-				'MongoDB Atlas no disponible, usando datos locales para login:',
-				error instanceof Error ? error.message : 'Unknown error',
+			console.error('Login error:', error);
+			return NextResponse.json(
+				{ error: 'Error interno del servidor' },
+				{ status: 500 },
 			);
-
-			// Si falla la conexión, usar datos locales
-			const localUser = localUsers.find(
-				(u) => u.email === email && u.password === password,
-			);
-
-			if (!localUser) {
-				return NextResponse.json(
-					{
-						error: 'Credenciales incorrectas',
-					},
-					{ status: 401 },
-				);
-			}
-
-			const userPayload = {
-				id: localUser.id,
-				email: localUser.email,
-				name: localUser.name,
-				isAdmin: localUser.isAdmin,
-			};
-
-			const token = generateToken(userPayload);
-
-			const response = NextResponse.json({
-				message: 'Login exitoso (modo local)',
-				user: userPayload,
-				token: token,
-			});
-
-			// Establecer cookie con el token
-			response.cookies.set('auth-token', token, {
-				httpOnly: true, // Cambiado a true para mayor seguridad
-				secure: process.env.NODE_ENV === 'production',
-				sameSite: 'lax',
-				maxAge: 7 * 24 * 60 * 60, // 7 días
-			});
-
-			return response;
 		}
 	} catch (error) {
 		console.error('Login error:', error);

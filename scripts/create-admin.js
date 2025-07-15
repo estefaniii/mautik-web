@@ -1,113 +1,47 @@
 // Script para crear usuario admin
-const mongoose = require('mongoose');
+const { PrismaClient } = require('@prisma/client');
 const bcrypt = require('bcryptjs');
 
-const MONGODB_URI =
-	process.env.MONGODB_URI ||
-	'mongodb+srv://mautik:uonhhughvghg@cluster0.bqqhjfc.mongodb.net/mautik_ecommerce?retryWrites=true&w=majority&appName=Cluster0';
+const prisma = new PrismaClient();
 
-// Schema de Usuario
-const UserSchema = new mongoose.Schema(
-	{
-		name: {
-			type: String,
-			required: [true, 'Name is required'],
-			trim: true,
-			maxlength: [50, 'Name cannot be more than 50 characters'],
-		},
-		email: {
-			type: String,
-			required: [true, 'Email is required'],
-			unique: true,
-			lowercase: true,
-			match: [
-				/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/,
-				'Please enter a valid email',
-			],
-		},
-		password: {
-			type: String,
-			required: [true, 'Password is required'],
-			minlength: [6, 'Password must be at least 6 characters'],
-		},
-		isAdmin: {
-			type: Boolean,
-			default: false,
-		},
-		avatar: {
-			type: String,
-			default: '',
-		},
-		address: {
-			street: String,
-			city: String,
-			state: String,
-			zipCode: String,
-			country: String,
-		},
-		phone: {
-			type: String,
-			trim: true,
-		},
-	},
-	{
-		timestamps: true,
-	},
-);
-
-// Middleware para hashear contraseña
-UserSchema.pre('save', async function (next) {
-	if (!this.isModified('password')) return next();
-
+async function createAdminUser() {
 	try {
-		const salt = await bcrypt.genSalt(12);
-		this.password = await bcrypt.hash(this.password, salt);
-		next();
-	} catch (error) {
-		next(error);
-	}
-});
-
-const User = mongoose.models.User || mongoose.model('User', UserSchema);
-
-const createAdmin = async () => {
-	try {
-		console.log('🔧 Conectando a la base de datos...');
-		await mongoose.connect(MONGODB_URI);
+		console.log('🔍 Verificando si ya existe un usuario admin...');
 
 		// Verificar si ya existe un admin
-		const existingAdmin = await User.findOne({ isAdmin: true });
+		const existingAdmin = await prisma.user.findFirst({
+			where: { isAdmin: true },
+		});
+
 		if (existingAdmin) {
-			console.log('ℹ️  Usuario admin ya existe');
-			console.log('📧 Email: admin@mautik.com');
-			console.log('🔑 Contraseña: admin123');
+			console.log('✅ Usuario admin ya existe:', existingAdmin.email);
 			return;
 		}
 
-		console.log('👤 Creando usuario admin...');
+		console.log('🔐 Creando usuario admin...');
+
+		// Hashear la contraseña
+		const hashedPassword = await bcrypt.hash('admin123', 12);
 
 		// Crear usuario admin
-		const adminUser = new User({
-			name: 'Admin Mautik',
-			email: 'admin@mautik.com',
-			password: 'admin123',
-			isAdmin: true,
+		const adminUser = await prisma.user.create({
+			data: {
+				name: 'Admin Mautik',
+				email: 'admin@mautik.com',
+				password: hashedPassword,
+				isAdmin: true,
+			},
 		});
 
-		await adminUser.save();
-
 		console.log('✅ Usuario admin creado exitosamente!');
-		console.log('📧 Email: admin@mautik.com');
+		console.log('📧 Email:', adminUser.email);
 		console.log('🔑 Contraseña: admin123');
-		console.log(
-			'⚠️  IMPORTANTE: Cambia la contraseña después del primer login',
-		);
+		console.log('🆔 ID:', adminUser.id);
 	} catch (error) {
-		console.error('❌ Error:', error.message);
+		console.error('❌ Error creando usuario admin:', error);
 	} finally {
-		await mongoose.disconnect();
-		process.exit(0);
+		await prisma.$disconnect();
 	}
-};
+}
 
-createAdmin();
+createAdminUser();

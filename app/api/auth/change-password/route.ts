@@ -1,55 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
-import connectDB from '@/lib/db';
-import User from '@/models/User';
+import { verifyToken } from '@/lib/auth';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
 	try {
-		await connectDB();
-
-		const { currentPassword, newPassword, userId } = await request.json();
-
-		if (!currentPassword || !newPassword || !userId) {
+		const token = request.headers.get('authorization')?.replace('Bearer ', '');
+		if (!token) {
+			return NextResponse.json(
+				{ error: 'Token de autenticación requerido' },
+				{ status: 401 },
+			);
+		}
+		const decoded = verifyToken(token);
+		if (!decoded) {
+			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+		}
+		const { currentPassword, newPassword } = await request.json();
+		if (!currentPassword || !newPassword) {
 			return NextResponse.json(
 				{ error: 'Todos los campos son requeridos' },
 				{ status: 400 },
 			);
 		}
-
-		// Buscar el usuario
-		const user = await User.findById(userId);
+		if (newPassword.length < 6) {
+			return NextResponse.json(
+				{ error: 'La nueva contraseña debe tener al menos 6 caracteres' },
+				{ status: 400 },
+			);
+		}
+		const user = await prisma.user.findUnique({ where: { id: decoded.id } });
 		if (!user) {
 			return NextResponse.json(
 				{ error: 'Usuario no encontrado' },
 				{ status: 404 },
 			);
 		}
-
-		// Verificar la contraseña actual
-		const isValidPassword = await bcrypt.compare(
-			currentPassword,
-			user.password,
-		);
-		if (!isValidPassword) {
+		const isValid = await bcrypt.compare(currentPassword, user.password);
+		if (!isValid) {
 			return NextResponse.json(
-				{ error: 'La contraseña actual es incorrecta' },
+				{ error: 'Contraseña actual incorrecta' },
 				{ status: 400 },
 			);
 		}
-
-		// Encriptar la nueva contraseña
-		const hashedNewPassword = await bcrypt.hash(newPassword, 12);
-
-		// Actualizar la contraseña
-		user.password = hashedNewPassword;
-		await user.save();
-
-		return NextResponse.json(
-			{ message: 'Contraseña actualizada exitosamente' },
-			{ status: 200 },
-		);
+		const hashedPassword = await bcrypt.hash(newPassword, 12);
+		await prisma.user.update({
+			where: { id: user.id },
+			data: { password: hashedPassword },
+		});
+		return NextResponse.json({
+			message: 'Contraseña actualizada exitosamente',
+		});
 	} catch (error) {
-		console.error('Error changing password:', error);
+		console.error('Error cambiando contraseña:', error);
 		return NextResponse.json(
 			{ error: 'Error interno del servidor' },
 			{ status: 500 },
