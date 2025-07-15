@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
-
-let prisma: PrismaClient;
-
-if (process.env.NODE_ENV === 'production') {
-	prisma = new PrismaClient();
-} else {
-	if (!(global as any).prisma) {
-		(global as any).prisma = new PrismaClient();
-	}
-	prisma = (global as any).prisma;
-}
+import { prisma } from '@/lib/db';
 
 // GET - Obtener productos
 export async function GET(request: NextRequest) {

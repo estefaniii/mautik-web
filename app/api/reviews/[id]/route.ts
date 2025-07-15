@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '@/lib/db';
 import { verifyToken } from '@/lib/auth';
 
 // Uso de 'params' actualizado para Next.js 13+ API routes
-const prisma = new PrismaClient();
 
 // PUT - Actualizar una reseña
 export async function PUT(
