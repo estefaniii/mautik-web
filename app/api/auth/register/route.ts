@@ -2,8 +2,20 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { generateToken } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
+	const ip = request.headers.get('x-forwarded-for') || 'unknown';
+	const { allowed, retryAfter } = rateLimit(`register:${ip}`);
+	if (!allowed) {
+		return NextResponse.json(
+			{
+				error: `Demasiados intentos. Intenta de nuevo en ${retryAfter} segundos.`,
+			},
+			{ status: 429 },
+		);
+	}
+
 	try {
 		const { name, email, password } = await request.json();
 

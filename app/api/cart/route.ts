@@ -39,6 +39,21 @@ export async function POST(request: NextRequest) {
 		if (!productId || typeof quantity !== 'number') {
 			return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
 		}
+
+		// Validar que el usuario existe en la base de datos
+		console.log('user.id del token:', user.id);
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		console.log('dbUser encontrado:', dbUser);
+		if (!dbUser) {
+			return NextResponse.json(
+				{
+					error:
+						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
+				},
+				{ status: 400 },
+			);
+		}
+
 		// Si ya existe, suma la cantidad
 		const existing = await prisma.cartItem.findFirst({
 			where: { userId: user.id, productId },
@@ -76,6 +91,19 @@ export async function PUT(request: NextRequest) {
 		if (!productId || typeof quantity !== 'number') {
 			return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
 		}
+
+		// Validar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{
+					error:
+						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
+				},
+				{ status: 400 },
+			);
+		}
+
 		const cartItem = await prisma.cartItem.updateMany({
 			where: { userId: user.id, productId },
 			data: { quantity },
@@ -99,6 +127,19 @@ export async function DELETE(request: NextRequest) {
 		if (!user)
 			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 		const { productId } = await request.json();
+
+		// Validar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{
+					error:
+						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
+				},
+				{ status: 400 },
+			);
+		}
+
 		if (productId) {
 			// Eliminar solo ese producto
 			await prisma.cartItem.deleteMany({

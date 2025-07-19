@@ -13,7 +13,8 @@ export interface CartItem {
   images: string[]
   attributes: { name: string; value: string }[]
   discount?: number
-  stock: number // <-- Add this line
+  stock: number
+  category?: string // <-- Agregado para compatibilidad con recomendaciones
 }
 
 // Define the cart context type
@@ -33,11 +34,57 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 // Create a provider component
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth()
+  const { user, isAuthenticated } = useAuth()
   const [cart, setCart] = useState<CartItem[]>([])
 
   // Helper to get the correct localStorage key
   const getCartKey = () => (user ? `mautik_cart_${user.id}` : "mautik_cart_temp")
+
+  // MIGRATION: Migrate guest cart to user cart on login
+  useEffect(() => {
+    const migrateGuestCart = async () => {
+      if (user && typeof window !== 'undefined') {
+        const guestCartRaw = localStorage.getItem('mautik_cart_temp')
+        if (guestCartRaw) {
+          try {
+            const guestCart: CartItem[] = JSON.parse(guestCartRaw)
+            // Merge each item into the user's cart via API
+            for (const item of guestCart) {
+              await fetch("/api/cart", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                credentials: "include",
+                body: JSON.stringify({ productId: item.id, quantity: item.quantity }),
+              })
+            }
+            // Limpiar carrito de invitado
+            localStorage.removeItem('mautik_cart_temp')
+            // Refrescar carrito desde API
+            const res = await fetch("/api/cart", { credentials: "include" })
+            if (res.ok) {
+              const data = await res.json()
+              setCart(
+                data.map((item: any) => ({
+                  id: item.productId,
+                  name: item.product.name,
+                  price: item.product.price,
+                  quantity: item.quantity,
+                  images: item.product.images,
+                  attributes: item.product.attributes || [],
+                  discount: item.product.discount,
+                  stock: item.product.stock,
+                }))
+              )
+            }
+          } catch (e) {
+            // Si hay error, solo limpia el carrito local
+            localStorage.removeItem('mautik_cart_temp')
+          }
+        }
+      }
+    }
+    migrateGuestCart()
+  }, [user])
 
   // Cargar carrito desde API o localStorage
   useEffect(() => {

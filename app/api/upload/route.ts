@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
 	try {
 		// Verificar autenticación usando JWT desde cookies
 		const user = verifyTokenFromCookies(request);
+		console.log('User extraído del token:', user);
 
 		if (!user) {
 			return NextResponse.json(
@@ -48,6 +49,10 @@ export async function POST(request: NextRequest) {
 
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
+		console.log(
+			'Archivo recibido:',
+			file ? { name: file.name, type: file.type, size: file.size } : null,
+		);
 
 		if (!file) {
 			return NextResponse.json(
@@ -57,6 +62,7 @@ export async function POST(request: NextRequest) {
 		}
 
 		// Verificar si las credenciales de Cloudinary están configuradas
+		console.log('Cloudinary config:', { cloudName, apiKey, apiSecret });
 		if (!cloudName || !apiKey || !apiSecret) {
 			console.error('Cloudinary credentials missing:', {
 				cloudName: !!cloudName,
@@ -128,6 +134,12 @@ export async function POST(request: NextRequest) {
 		const imageUrl = (result as any).secure_url;
 
 		// Actualizar el avatar del usuario en la base de datos
+		console.log(
+			'Actualizando avatar para user.id:',
+			user.id,
+			'con url:',
+			imageUrl,
+		);
 		const updatedUser = await prisma.user.update({
 			where: { id: user.id },
 			data: { avatar: imageUrl },
@@ -151,6 +163,9 @@ export async function POST(request: NextRequest) {
 		});
 	} catch (error) {
 		console.error('Upload error:', error);
+		if (error instanceof Error && error.stack) {
+			console.error('Stack trace:', error.stack);
+		}
 		return NextResponse.json(
 			{
 				error: 'Error al subir la imagen',

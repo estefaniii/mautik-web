@@ -1,22 +1,18 @@
 "use client"
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import { useSession, signIn, signOut } from 'next-auth/react'
+import { useRouter } from 'next/navigation'
 
 interface User {
   id: string
   name: string
   email: string
-  isAdmin: boolean
   avatar?: string
-  address?: {
-    street: string
-    city: string
-    state: string
-    zipCode: string
-    country: string
-  }
+  isAdmin?: boolean
+  address?: any
   phone?: string
-  createdAt?: string | Date
+  updatedAt?: string
 }
 
 interface AuthContextType {
@@ -24,6 +20,7 @@ interface AuthContextType {
   isAuthenticated: boolean
   isLoading: boolean
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
+  loginWithGoogle: () => Promise<{ success: boolean; error?: string }>
   register: (name: string, email: string, password: string) => Promise<{ success: boolean; error?: string }>
   logout: () => Promise<void>
   checkAuth: () => Promise<void>
@@ -32,85 +29,93 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Helper function to get token from cookies
-const getTokenFromCookies = (): string | null => {
-  if (typeof document === 'undefined') return null;
-  
-  try {
-    const cookies = document.cookie.split(';');
-    console.log('All cookies:', cookies); // Debug log
-    
-    const authTokenCookie = cookies.find(cookie => 
-      cookie.trim().startsWith('auth-token=')
-    );
-    
-    console.log('Auth token cookie found:', authTokenCookie); // Debug log
-    
-    if (authTokenCookie) {
-      const token = authTokenCookie.split('=')[1];
-      console.log('Token extracted:', token ? 'Found' : 'Not found'); // Debug log
-      return token;
-    }
-    
-    console.log('No auth-token cookie found'); // Debug log
-    return null;
-  } catch (error) {
-    console.error('Error parsing cookies:', error);
-    return null;
+export function useAuth() {
+  const context = useContext(AuthContext)
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider')
   }
-};
+  return context
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession()
+  const router = useRouter()
   const [user, setUser] = useState<User | null>(null)
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
 
-  const checkAuth = async () => {
-      try {
-      const response = await fetch('/api/auth/me')
-      const data = await response.json()
+  // Sync NextAuth session with our user state
+  useEffect(() => {
+    if (status === 'loading') {
+      setIsLoading(true)
+      return
+    }
 
-      if (data.isAuthenticated && data.user) {
-        setUser(data.user)
-        setIsAuthenticated(true)
-      } else {
-        setUser(null)
-        setIsAuthenticated(false)
+    if (session?.user) {
+      const userData: User = {
+        id: (session.user as any).id || "",
+        name: session.user.name || "",
+        email: session.user.email || "",
+        avatar: session.user.image || (session.user as any).avatar || "",
+        isAdmin: (session.user as any).isAdmin || false,
       }
-    } catch (error) {
-      console.error('Error checking auth:', error)
+      setUser(userData)
+      setIsAuthenticated(true)
+    } else {
       setUser(null)
       setIsAuthenticated(false)
-    } finally {
-      setIsLoading(false)
     }
-  }
+    setIsLoading(false)
+  }, [session, status])
 
   const login = async (email: string, password: string) => {
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
+      const result = await signIn('credentials', {
+        email,
+        password,
+        redirect: false,
       })
 
-      const data = await response.json()
-
-      if (response.ok) {
-        setUser(data.user)
-        setIsAuthenticated(true)
-        if (data.token) {
-          localStorage.setItem('auth-token', data.token)
-        }
-        return { success: true }
-      } else {
-        return { success: false, error: data.error }
+      if (result?.error) {
+        return { success: false, error: result.error }
       }
+
+      return { success: true }
     } catch (error) {
       console.error('Login error:', error)
       return { success: false, error: 'Error de conexión' }
+    }
+  }
+
+  const loginWithGoogle = async () => {
+    try {
+      const result = await signIn('google', {
+        redirect: false,
+      })
+
+      if (result?.error) {
+        return { success: false, error: result.error }
+      }
+
+      // Borra la cookie auth-token antes de pedir el nuevo JWT
+      document.cookie = 'auth-token=; Max-Age=0; path=/;';
+
+      // Espera a que la sesión esté disponible
+      await new Promise(res => setTimeout(res, 500));
+      const session = await import('next-auth/react').then(m => m.getSession());
+      if (session?.user?.email) {
+        // Solicita el JWT y guarda la cookie
+        await fetch('/api/auth/issue-jwt', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: session.user.email }),
+        });
+      }
+
+      return { success: true }
+    } catch (error) {
+      console.error('Google login error:', error)
+      return { success: false, error: 'Error de conexión con Google' }
     }
   }
 
@@ -127,8 +132,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json()
 
       if (response.ok) {
-        setUser(data.user)
-        setIsAuthenticated(true)
+        // After successful registration, sign in with credentials
+        const loginResult = await signIn('credentials', {
+          email,
+          password,
+          redirect: false,
+        })
+
+        if (loginResult?.error) {
+          return { success: false, error: loginResult.error }
+        }
+
         return { success: true }
       } else {
         return { success: false, error: data.error }
@@ -141,15 +155,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-      })
-    } catch (error) {
-      console.error('Logout error:', error)
-    } finally {
+      await signOut({ redirect: false })
       setUser(null)
       setIsAuthenticated(false)
+    } catch (error) {
+      console.error('Logout error:', error)
     }
+  }
+
+  const checkAuth = async () => {
+    // This is handled by NextAuth session
+    setIsLoading(false)
   }
 
   const updateProfile = async (updates: Partial<User>) => {
@@ -158,16 +174,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: false, error: 'Usuario no autenticado' };
       }
 
-      const token = getTokenFromCookies();
-      if (!token) {
-        return { success: false, error: 'Token no encontrado' };
-      }
-
-      // Llamar a la API para actualizar el perfil
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(updates),
@@ -176,7 +185,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const data = await response.json();
 
       if (response.ok) {
-        // Actualizar el estado local con los datos de la API
         setUser(data.user);
         return { success: true, user: data.user };
       } else {
@@ -188,15 +196,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  useEffect(() => {
-    checkAuth()
-  }, [])
-
   const value: AuthContextType = {
     user,
     isAuthenticated,
     isLoading,
     login,
+    loginWithGoogle,
     register,
     logout,
     checkAuth,
@@ -204,12 +209,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider')
-  }
-  return context
-}
+} 

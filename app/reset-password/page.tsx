@@ -1,0 +1,117 @@
+"use client";
+import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import Link from "next/link";
+
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token") || "";
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [success, setSuccess] = useState(false);
+  const { toast } = useToast();
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirm) {
+      toast({
+        title: "Error",
+        description: "Las contraseñas no coinciden.",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (password.length < 6) {
+      toast({
+        title: "Error",
+        description: "La contraseña debe tener al menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setSuccess(true);
+        toast({
+          title: "Contraseña restablecida",
+          description: "Ahora puedes iniciar sesión con tu nueva contraseña.",
+        });
+        setTimeout(() => router.push("/login"), 2000);
+      } else {
+        toast({
+          title: "Error",
+          description: data.error || "No se pudo restablecer la contraseña.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Error de conexión.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 via-white to-pink-50 p-4">
+      <div className="w-full max-w-md">
+        <Card className="shadow-xl border-0">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-center">Restablecer contraseña</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {success ? (
+              <div className="text-center text-green-600">
+                Contraseña restablecida correctamente. Redirigiendo al login...
+                <div className="mt-4">
+                  <Link href="/login" className="text-purple-600 hover:underline">Ir al login</Link>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-4">
+                <Input
+                  type="password"
+                  placeholder="Nueva contraseña"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <Input
+                  type="password"
+                  placeholder="Confirmar contraseña"
+                  value={confirm}
+                  onChange={e => setConfirm(e.target.value)}
+                  required
+                  disabled={loading}
+                />
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading ? "Restableciendo..." : "Restablecer contraseña"}
+                </Button>
+                <div className="text-center mt-2">
+                  <Link href="/login" className="text-purple-600 hover:underline">Volver al login</Link>
+                </div>
+              </form>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+} 

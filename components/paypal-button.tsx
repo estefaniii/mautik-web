@@ -90,7 +90,6 @@ export default function PayPalButton({ amount, currency = "USD", onSuccess, onEr
         paypalButtonsInstance.current = null;
       }
     };
-    // eslint-disable-next-line
   }, [amount, currency]);
 
   return <div ref={paypalRef} />;

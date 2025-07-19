@@ -29,6 +29,14 @@ export async function GET(request: NextRequest) {
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 		}
+		// Verificar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{ error: 'Usuario no existe en la base de datos' },
+				{ status: 401 },
+			);
+		}
 
 		const wishlist = await prisma.wishlistItem.findMany({
 			where: { userId: user.id },
@@ -73,6 +81,14 @@ export async function POST(request: NextRequest) {
 
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+		}
+		// Verificar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{ error: 'Usuario no existe en la base de datos' },
+				{ status: 401 },
+			);
 		}
 
 		const wishlistItems = await request.json();
@@ -124,6 +140,14 @@ export async function DELETE(request: NextRequest) {
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 		}
+		// Verificar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{ error: 'Usuario no existe en la base de datos' },
+				{ status: 401 },
+			);
+		}
 
 		await prisma.wishlistItem.deleteMany({
 			where: { userId: user.id },
@@ -146,6 +170,14 @@ export async function PATCH(request: NextRequest) {
 
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+		}
+		// Verificar que el usuario existe en la base de datos
+		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
+		if (!dbUser) {
+			return NextResponse.json(
+				{ error: 'Usuario no existe en la base de datos' },
+				{ status: 401 },
+			);
 		}
 
 		const { productId } = await request.json();

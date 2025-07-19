@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
@@ -17,10 +17,30 @@ export default function ShopFilters({
   onStockChange?: (checked: boolean) => void
   onReset?: () => void
 }) {
-  // Obtener categorías únicas
-  // Eliminar: const categories = Array.from(new Set(products.map((product) => product.category)))
-  // TODO: Implementar fetch a la API para filtros reales
-  const categories = ["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"]
+  const [categories, setCategories] = useState<string[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    // Obtener categorías únicas de la API de productos
+    const fetchCategories = async () => {
+      try {
+        setLoading(true)
+        const res = await fetch('/api/products?limit=1000')
+        if (res.ok) {
+          const products = await res.json()
+          const uniqueCategories = Array.from(new Set(products.map((p: any) => p.category ?? p.product?.category).filter(Boolean)))
+          setCategories(uniqueCategories as string[])
+        } else {
+          setCategories(["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"])
+        }
+      } catch {
+        setCategories(["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchCategories()
+  }, [])
 
   return (
     <aside className="w-full max-w-full lg:w-80 bg-gradient-to-br from-purple-50/80 to-white/90 dark:from-gray-900 dark:to-gray-800 rounded-2xl lg:rounded-3xl shadow-xl ring-1 ring-purple-100/40 dark:ring-gray-800/60 px-4 py-5 sm:px-6 sm:py-6 md:px-8 md:py-8 mb-6 md:mb-0 animate-fade-in-up mx-auto lg:mx-0" aria-label="Filtros de productos" role="complementary">
@@ -42,27 +62,33 @@ export default function ShopFilters({
         <fieldset>
           <legend className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-purple-800 dark:text-purple-200">Categorías</legend>
           <div className="flex flex-wrap gap-2">
-            {categories.map((category) => {
-              const selected = selectedCategories.includes(category)
-              return (
-                <label
-                  key={category}
-                  className={`flex items-center gap-2 px-3 py-1 rounded-xl cursor-pointer transition-all font-sans text-sm font-medium
-                    ${selected ? 'bg-gradient-to-r from-purple-700/90 to-purple-500/80 text-white shadow-md' : 'bg-purple-50 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 hover:bg-purple-100 dark:hover:bg-purple-800'}
-                  `}
-                  tabIndex={0}
-                  style={{maxWidth: '100%'}}>
-                  <Checkbox
-                    id={`category-${category}`}
-                    checked={selected}
-                    onCheckedChange={(checked) => onCategoryChange(category, checked as boolean)}
-                    className="accent-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
-                  />
-                  <span className="truncate max-w-[7rem] md:max-w-[10rem]">{category}</span>
-                  {selected && <Check size={16} className="ml-1" />}
-                </label>
-              )
-            })}
+            {loading ? (
+              <span className="text-gray-500 text-sm">Cargando categorías...</span>
+            ) : categories.length === 0 ? (
+              <span className="text-gray-500 text-sm">No hay categorías</span>
+            ) : (
+              categories.map((category) => {
+                const selected = selectedCategories.includes(category)
+                return (
+                  <label
+                    key={category}
+                    className={`flex items-center gap-2 px-3 py-1 rounded-xl cursor-pointer transition-all font-sans text-sm font-medium
+                      ${selected ? 'bg-gradient-to-r from-purple-700/90 to-purple-500/80 text-white shadow-md' : 'bg-purple-50 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 hover:bg-purple-100 dark:hover:bg-purple-800'}
+                    `}
+                    tabIndex={0}
+                    style={{maxWidth: '100%'}}>
+                    <Checkbox
+                      id={`category-${category}`}
+                      checked={selected}
+                      onCheckedChange={(checked) => onCategoryChange(category, checked as boolean)}
+                      className="accent-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
+                    />
+                    <span className="truncate max-w-[7rem] md:max-w-[10rem]">{category}</span>
+                    {selected && <Check size={16} className="ml-1" />}
+                  </label>
+                )
+              })
+            )}
           </div>
         </fieldset>
         <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { sendOrderConfirmationEmail } from '@/lib/resend';
 
 export async function GET(request: NextRequest) {
 	try {
@@ -27,6 +28,9 @@ export async function POST(request: NextRequest) {
 		}
 		// Validar stock de cada producto
 		const productUpdates: { id: string; newStock: number }[] = [];
+		const orderItems: Array<{ name: string; quantity: number; price: number }> =
+			[];
+
 		for (const item of data.items) {
 			const product = await prisma.product.findUnique({
 				where: { id: item.productId },
@@ -40,6 +44,11 @@ export async function POST(request: NextRequest) {
 			productUpdates.push({
 				id: item.productId,
 				newStock: product.stock - item.quantity,
+			});
+			orderItems.push({
+				name: product.name,
+				quantity: item.quantity,
+				price: item.price,
 			});
 		}
 		// Usar transacción para actualizar stock y crear pedido
@@ -70,13 +79,34 @@ export async function POST(request: NextRequest) {
 					paidAt: data.paidAt
 						? new Date(data.paidAt)
 						: data.paymentId && data.paymentMethod
-						? new Date()
-						: null,
+							? new Date()
+							: null,
 				},
-				include: { items: true },
+				include: { items: true, user: true },
 			});
 			return order;
 		});
+
+		// Enviar email de confirmación
+		if (result.user && data.shippingAddress) {
+			try {
+				await sendOrderConfirmationEmail({
+					customerName: result.user.name || 'Cliente',
+					customerEmail: result.user.email,
+					orderItems,
+					shippingAddress: data.shippingAddress,
+					paymentMethod: data.paymentMethod
+						? { brand: data.paymentMethod, last4: '****' }
+						: { brand: 'N/A', last4: 'N/A' },
+					totalAmount: data.totalAmount,
+					orderId: result.id,
+				});
+			} catch (emailError) {
+				console.error('Error enviando email de confirmación:', emailError);
+				// No fallar el pedido si falla el email
+			}
+		}
+
 		return NextResponse.json({
 			message: 'Pedido creado exitosamente',
 			order: result,

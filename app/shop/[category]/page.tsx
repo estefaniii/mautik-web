@@ -18,20 +18,20 @@ interface CategoryPageProps {
   }
 }
 
-export default function CategoryPage({ params }: CategoryPageProps) {
+async function fetchCategoryProducts(categoryName: string): Promise<Product[]> {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ''}/api/products?category=${encodeURIComponent(categoryName)}`, { cache: 'no-store' })
+  if (!res.ok) return []
+  return await res.json()
+}
+
+export default async function CategoryPage({ params }: CategoryPageProps) {
   // Decode the category from URL
   const categoryName = decodeURIComponent(params.category)
 
-  // Get all products in this category
-  // Eliminar: const categoryProducts = products.filter((product) => product.category.toLowerCase() === categoryName.toLowerCase())
-  // TODO: Implementar fetch a la API para productos por categoría reales
-  const categoryProducts: Product[] = [] // Placeholder for now
+  // Fetch products for this category
+  const categoryProducts = await fetchCategoryProducts(categoryName)
 
-  // If no products found, return 404
-  if (categoryProducts.length === 0) {
-    notFound()
-  }
-
+  // If no products found, show mensaje amigable
   return (
     <div className="bg-gradient-to-b from-purple-50 to-white min-h-screen py-12">
       <div className="container mx-auto px-4">
@@ -65,11 +65,17 @@ export default function CategoryPage({ params }: CategoryPageProps) {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {categoryProducts.map((product: Product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {categoryProducts.length === 0 ? (
+          <div className="text-center py-16 text-gray-500">
+            No hay productos en esta categoría por ahora.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {categoryProducts.map((product: Product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

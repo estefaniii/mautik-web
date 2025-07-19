@@ -1,0 +1,21 @@
+{
+  "name": "Mautik E-commerce",
+  "short_name": "Mautik",
+  "description": "Artesanías únicas hechas a mano. Joyería, crochet, llaveros y más.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7c3aed",
+  "icons": [
+    {
+      "src": "/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    }
+  ]
+} 

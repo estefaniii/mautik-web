@@ -25,7 +25,7 @@ interface Product {
 }
 
 export default function FeaturedCollection() {
-  const { favorites, getFavoriteProducts } = useFavorites()
+  const { favorites } = useFavorites()
   const [recommended, setRecommended] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -35,34 +35,33 @@ export default function FeaturedCollection() {
         const response = await fetch('/api/products')
         if (response.ok) {
           const products: Product[] = await response.json()
-          
-          let recommendedProducts: Product[] = []
-          
-          // Si hay favoritos, mostrar productos de la misma categoría
+          let recs: Product[] = []
           if (favorites && favorites.length > 0) {
             const favoriteCategories = favorites.map(f => f.category)
-            recommendedProducts = products.filter(
-              p => favoriteCategories.includes(p.category) && 
-                   !favorites.some(f => f.id === p.id)
-            ).slice(0, 8)
+            const favoriteIds = favorites.map(f => f.id)
+            // 1. De la misma categoría, que no sean favoritos
+            recs = products.filter(p => favoriteCategories.includes(p.category) && !favoriteIds.includes(p.id))
+            // 2. Si faltan, destacados
+            if (recs.length < 8) {
+              const featured = products.filter(p => p.featured && !recs.some(r => r.id === p.id) && !favoriteIds.includes(p.id))
+              recs = recs.concat(featured)
+            }
+            // 3. Si faltan, nuevos
+            if (recs.length < 8) {
+              const isNew = products.filter(p => p.isNew && !recs.some(r => r.id === p.id) && !favoriteIds.includes(p.id))
+              recs = recs.concat(isNew)
+            }
+            // 4. Si aún faltan, cualquiera
+            if (recs.length < 8) {
+              const others = products.filter(p => !recs.some(r => r.id === p.id) && !favoriteIds.includes(p.id))
+              recs = recs.concat(others)
+            }
+            setRecommended(recs.slice(0, 8))
+          } else {
+            // Si no hay favoritos, mostrar productos nuevos
+            const newProducts = products.filter(p => p.isNew).slice(0, 8)
+            setRecommended(newProducts)
           }
-          
-          // Si no hay recomendaciones basadas en favoritos, mostrar productos destacados
-          if (recommendedProducts.length === 0) {
-            recommendedProducts = products.filter(p => p.featured).slice(0, 8)
-          }
-          
-          // Si aún no hay productos, mostrar los más nuevos
-          if (recommendedProducts.length === 0) {
-            recommendedProducts = products.filter(p => p.isNew).slice(0, 8)
-          }
-          
-          // Si aún no hay productos, mostrar los primeros 8
-          if (recommendedProducts.length === 0) {
-            recommendedProducts = products.slice(0, 8)
-          }
-          
-          setRecommended(recommendedProducts)
         }
       } catch (error) {
         const errorToUse = error instanceof Error ? error : new Error(typeof error === 'string' ? error : JSON.stringify(error));
@@ -71,7 +70,6 @@ export default function FeaturedCollection() {
         setLoading(false)
       }
     }
-
     fetchProducts()
   }, [favorites])
 
@@ -147,7 +145,7 @@ export default function FeaturedCollection() {
             la belleza del mar con elegancia y creatividad artesanal.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link href="/shop?collection=oceano-panameno">
+            <Link href="escu/shop?collection=oceano-panameno">
               <Button size="lg" className="bg-purple-800 hover:bg-purple-900 dark:bg-purple-700 dark:hover:bg-purple-800">
                 Ver Colección
               </Button>

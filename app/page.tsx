@@ -107,12 +107,14 @@ export default function HomePage() {
           </div>
 
           <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
-              Artesanías Únicas
-              <span className="block text-purple-300">Hechas a Mano</span>
+            <h1 className="text-5xl md:text-7xl font-bold leading-tight text-white mb-2">
+              Artesanías y Bisutería
             </h1>
+            <h2 className="text-5xl md:text-7xl font-bold leading-tight text-purple-300 mb-6" style={{marginTop: 0}}>
+              elegidas para ti
+            </h2>
             <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
-              Descubre piezas únicas de joyería, crochet, llaveros y más, elaboradas con amor y los mejores materiales. Cada artesanía cuenta una historia especial.
+              Cada pieza cuenta una historia: desde la creatividad artesanal hasta la selección de tendencias que te encantarán.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button asChild size="lg" className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-lg px-8 py-6 text-white border-none shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 dark:from-purple-400 dark:via-purple-500 dark:to-purple-600 dark:hover:from-purple-500 dark:hover:via-purple-600 dark:hover:to-purple-700">

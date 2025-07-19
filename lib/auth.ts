@@ -64,7 +64,7 @@ export async function authenticateUser(email: string, password: string) {
 		}
 
 		// Usar bcrypt.compare en lugar de user.comparePassword
-		const isPasswordValid = await bcrypt.compare(password, user.password);
+		const isPasswordValid = await bcrypt.compare(password, user.password || '');
 		if (!isPasswordValid) {
 			return { success: false, error: 'Contraseña incorrecta' };
 		}

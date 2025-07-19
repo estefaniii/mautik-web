@@ -23,7 +23,6 @@ export default function PaymentForm({ amount, onSuccess, onError, noFormWrapper 
     setError(null);
     setLoading(true);
     try {
-      // 1. Crear PaymentIntent en el backend
       const res = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -32,7 +31,6 @@ export default function PaymentForm({ amount, onSuccess, onError, noFormWrapper 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error creando PaymentIntent');
       const clientSecret = data.clientSecret;
-      // 2. Confirmar el pago con Stripe.js
       const result = await stripe?.confirmCardPayment(clientSecret, {
         payment_method: {
           card: elements?.getElement(CardElement)!,

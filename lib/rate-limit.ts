@@ -174,3 +174,32 @@ export function withRateLimit(
 		return handler(req, res);
 	};
 }
+
+// Simple in-memory rate limiter (per IP or key)
+// Para producción, migrar a Redis o similar
+
+const WINDOW_MS = 15 * 60 * 1000; // 15 minutos
+const MAX_REQUESTS = 8; // Máximo de intentos por ventana
+
+// Estructura: { [key: string]: { count: number, expires: number } }
+const store: Record<string, { count: number; expires: number }> = {};
+
+export function rateLimit(key: string): {
+	allowed: boolean;
+	retryAfter: number;
+} {
+	const now = Date.now();
+	if (!store[key] || store[key].expires < now) {
+		store[key] = { count: 1, expires: now + WINDOW_MS };
+		return { allowed: true, retryAfter: 0 };
+	}
+	if (store[key].count < MAX_REQUESTS) {
+		store[key].count++;
+		return { allowed: true, retryAfter: 0 };
+	}
+	// Demasiados intentos
+	return {
+		allowed: false,
+		retryAfter: Math.ceil((store[key].expires - now) / 1000),
+	};
+}

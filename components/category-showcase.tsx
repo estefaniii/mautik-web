@@ -1,5 +1,5 @@
 import Link from "next/link"
-import Image from "next/image"
+import LazyImage from '@/components/ui/lazy-image'
 import { ArrowRight, ArrowLeft } from "lucide-react"
 import { useRef, useState, useEffect } from "react"
 
@@ -57,12 +57,15 @@ export function CategoryShowcase() {
   const checkForScroll = () => {
     const el = scrollRef.current
     if (!el) return
-    setCanScrollLeft(el.scrollLeft > 0)
-    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 1)
+    setCanScrollLeft(el.scrollLeft > 2)
+    setCanScrollRight(el.scrollLeft + el.clientWidth < el.scrollWidth - 2)
   }
 
   useEffect(() => {
-    checkForScroll()
+    // Esperar a que el DOM pinte el carrusel antes de chequear scroll
+    setTimeout(() => {
+      checkForScroll()
+    }, 0)
     const el = scrollRef.current
     if (!el) return
     el.addEventListener("scroll", checkForScroll)
@@ -78,13 +81,14 @@ export function CategoryShowcase() {
     if (!el) return
     const scrollAmount = el.clientWidth * 0.8
     el.scrollBy({ left: dir === "left" ? -scrollAmount : scrollAmount, behavior: "smooth" })
+    setTimeout(checkForScroll, 350)
   }
 
   return (
     <section className="py-16 bg-white dark:bg-gray-900">
       <div className="container mx-auto px-2 sm:px-4">
         <h2 className="font-display text-3xl font-bold text-purple-900 dark:text-purple-200 text-center mb-12">
-          Explora Nuestras Categorías
+          Descubre Nuestras Categorías
         </h2>
         <div className="relative">
           {/* Gradiente izquierdo */}
@@ -123,11 +127,12 @@ export function CategoryShowcase() {
                 aria-label={`Ver productos de la categoría ${category.name}`}
               >
                 <div className="relative h-44 sm:h-56 md:h-60 w-full">
-                  <Image
+                  <LazyImage
                     src={category.image || "/placeholder.svg"}
                     alt={category.name}
                     fill
                     className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    priority={false}
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-purple-900/80 to-transparent" />
                 </div>

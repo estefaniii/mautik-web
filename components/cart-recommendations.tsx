@@ -11,43 +11,59 @@ import type { Product } from "@/types/product"
 
 export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: string[] }) {
   const { favorites } = useFavorites()
+  const { cart } = useCart()
   const favoriteIds = favorites.map(f => f.id)
-  const exclude = new Set([...(excludeIds || []), ...favoriteIds])
+  const cartIds = cart.map(item => item.id)
+  const exclude = new Set([...(excludeIds || []), ...favoriteIds, ...cartIds])
+  const cartCategories = Array.from(
+  new Set(cart.map(item => item.category).filter(Boolean))
+) as string[];
 
-  // Obtener categorías del carrito
-  // TODO: Implementar fetch a la API para recomendaciones reales
-  const carritoCategorias = Array.from(new Set(
-    // products.filter(p => excludeIds.includes(p.id)).map(p => p.category)
-    [] // Placeholder, will be replaced with API call
-  ))
+  const [recommended, setRecommended] = useState<Product[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Recomendados: primero de la misma categoría, luego destacados, luego populares
-  let recomendadosCategoria: any[] = [] // Placeholder, will be replaced with API call
-  let recomendadosDestacados: any[] = [] // Placeholder, will be replaced with API call
-  let recomendadosPopulares: any[] = [] // Placeholder, will be replaced with API call
-
-  let recommended = [
-    ...recomendadosCategoria,
-    ...recomendadosDestacados,
-    ...recomendadosPopulares
-  ].slice(0, 4)
-
-  if (recommended.length === 0) return (
-    <section className="mt-12 text-center text-gray-500">
-      <h2 className="font-display text-xl font-bold text-purple-900 mb-4">Quizá te interese</h2>
-      <p>No hay más productos para recomendarte en este momento.<br/>¡Ya tienes todos nuestros destacados o populares en tu carrito o favoritos!</p>
-    </section>
-  )
+  useEffect(() => {
+    const fetchRecommendations = async () => {
+      setLoading(true)
+      try {
+        const res = await fetch('/api/products?limit=100')
+        if (!res.ok) throw new Error('No se pudieron obtener productos')
+        const products: Product[] = await res.json()
+        // Filtrar productos que no estén en el carrito ni en favoritos
+        const filtered = products.filter(p => !exclude.has(p.id))
+        // 1. Recomendados de la misma categoría
+        let recs: Product[] = []
+        if (cartCategories.length > 0) {
+          recs = filtered.filter(p => cartCategories.includes(p.category))
+        }
+        // 2. Si faltan, agregar destacados
+        if (recs.length < 4) {
+          const featured = filtered.filter(p => p.featured && !recs.some(r => r.id === p.id))
+          recs = recs.concat(featured)
+        }
+        // 3. Si faltan, agregar nuevos
+        if (recs.length < 4) {
+          const isNew = filtered.filter(p => p.isNew && !recs.some(r => r.id === p.id))
+          recs = recs.concat(isNew)
+        }
+        // 4. Si aún faltan, agregar cualquiera
+        if (recs.length < 4) {
+          const others = filtered.filter(p => !recs.some(r => r.id === p.id))
+          recs = recs.concat(others)
+        }
+        setRecommended(recs.slice(0, 4))
+      } catch (e) {
+        setRecommended([])
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchRecommendations()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cartCategories.join(','), favorites.map(f => f.id).join(','), excludeIds.join(',')])
 
   const { addToCart } = useCart()
   const { toast } = useToast()
-
-  // Estado de carga para skeleton
-  const [loading, setLoading] = useState(true)
-  useEffect(() => {
-    const timeout = setTimeout(() => setLoading(false), 600)
-    return () => clearTimeout(timeout)
-  }, [excludeIds, favorites])
 
   if (loading) {
     return (
@@ -70,6 +86,13 @@ export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: 
       </section>
     )
   }
+
+  if (recommended.length === 0) return (
+    <section className="mt-12 text-center text-gray-500">
+      <h2 className="font-display text-xl font-bold text-purple-900 mb-4">Quizá te interese</h2>
+      <p>No hay más productos para recomendarte en este momento.<br/>¡Ya tienes todos nuestros destacados o populares en tu carrito o favoritos!</p>
+    </section>
+  )
 
   return (
     <section className="mt-14 bg-gradient-to-br from-purple-100/80 to-white/90 dark:from-gray-900 dark:to-gray-800 rounded-3xl p-8 shadow-xl ring-1 ring-purple-100/40 dark:ring-gray-800/60">
@@ -124,7 +147,7 @@ export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: 
                 </div>
               )}
               {/* Mostrar popularidad si tiene más de 10 ventas */}
-              {product.reviewCount > 10 && (
+              {(product.reviewCount ?? 0) > 10 && (
                 <div className="absolute bottom-32 left-1/2 -translate-x-1/2 text-yellow-700 dark:text-yellow-200 text-xs font-bold bg-yellow-50/90 dark:bg-yellow-900/80 px-2 py-1 rounded shadow badge-anim flex items-center font-sans whitespace-nowrap">
                   <Star size={12} className="mr-1" />Popular: {product.reviewCount} vendidos
                 </div>
@@ -143,7 +166,7 @@ export default function CartRecommendations({ excludeIds = [] }: { excludeIds?: 
                       <Star
                         key={i}
                         size={14}
-                        className={i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"}
+                        className={i < Math.floor(product.rating ?? 0) ? "text-yellow-400 fill-current" : "text-gray-300"}
                       />
                     ))}
                     <span className="text-xs text-gray-500 ml-1">({product.reviewCount})</span>

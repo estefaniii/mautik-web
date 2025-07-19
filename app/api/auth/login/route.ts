@@ -1,9 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateUser, generateToken } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 // Elimina toda la lógica de localUsers y fallback a datos locales. Solo usa Prisma.
 
 export async function POST(request: NextRequest) {
+	const ip = request.headers.get('x-forwarded-for') || 'unknown';
+	const { allowed, retryAfter } = rateLimit(`login:${ip}`);
+	if (!allowed) {
+		return NextResponse.json(
+			{
+				error: `Demasiados intentos. Intenta de nuevo en ${retryAfter} segundos.`,
+			},
+			{ status: 429 },
+		);
+	}
+
 	try {
 		const { email, password } = await request.json();
 

@@ -40,17 +40,10 @@ export default function AboutPage() {
                 Nacidos de la Pasión por lo Artesanal
               </h2>
               <p className="text-gray-700 dark:text-gray-300 mb-4">
-                Mautik nació en 2021 de la mano de Estéfani Torres, una apasionada artesana que comenzó creando pulseras
-                de hilos, alambre, peluches de crochet y accesorios únicos.
-              </p>
-              <p className="text-gray-700 dark:text-gray-300 mb-4">
-                Lo que comenzó como un pequeño proyecto en La Chorrera, Panamá, rápidamente se convirtió en un referente
-                de la joyería artesanal y accesorios hechos a mano, gracias a la dedicación por la calidad y el detalle
-                en cada pieza.
+                Mautik nació de la pasión por lo artesanal y el deseo de compartir belleza auténtica. Hoy, además de nuestras creaciones hechas a mano, seleccionamos productos que reflejan nuestro estilo y valores. Así, te ofrecemos una experiencia única, donde cada pieza —hecha o elegida— tiene un propósito y una historia.
               </p>
               <p className="text-gray-700 dark:text-gray-300">
-                Hoy, Mautik ofrece una variedad de productos artesanales que reflejan la creatividad y el amor por el
-                arte manual, manteniendo la esencia panameña en cada creación.
+                Nuestra misión es inspirar, conectar y sorprenderte con una mezcla de artesanía local y productos curados de todo el mundo.
               </p>
             </div>
           </div>

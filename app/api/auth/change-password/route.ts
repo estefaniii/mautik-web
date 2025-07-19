@@ -36,7 +36,7 @@ export async function POST(request: NextRequest) {
 				{ status: 404 },
 			);
 		}
-		const isValid = await bcrypt.compare(currentPassword, user.password);
+		const isValid = await bcrypt.compare(currentPassword, user.password || '');
 		if (!isValid) {
 			return NextResponse.json(
 				{ error: 'Contraseña actual incorrecta' },

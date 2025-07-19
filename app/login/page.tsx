@@ -18,7 +18,7 @@ import Head from "next/head"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { login, register, isLoading } = useAuth()
+  const { login, register, isLoading, loginWithGoogle } = useAuth()
   const { toast } = useToast()
   
   const [activeTab, setActiveTab] = useState("login")
@@ -66,6 +66,14 @@ function LoginForm() {
         title: "¡Bienvenido!",
         description: "Has iniciado sesión exitosamente.",
       })
+      // Enviar correo de bienvenida
+      try {
+        await fetch("/api/send-welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginForm.email }),
+        })
+      } catch {}
       router.push("/")
     } else {
       setFormError(result.error || "Credenciales incorrectas.")
@@ -113,6 +121,14 @@ function LoginForm() {
         title: "¡Cuenta creada!",
         description: "Tu cuenta ha sido creada exitosamente.",
       })
+      // Enviar correo de bienvenida
+      try {
+        await fetch("/api/send-welcome-email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: registerForm.email, name: registerForm.name }),
+        })
+      } catch {}
       router.push("/")
     } else {
       setFormError(result.error || "Error al crear la cuenta.")
@@ -226,7 +242,6 @@ function LoginForm() {
                     )}
                   </Button>
                 </form>
-
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
                     <span className="w-full border-t" />
@@ -235,16 +250,45 @@ function LoginForm() {
                     <span className="bg-white px-2 text-gray-500">O continúa con</span>
                   </div>
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <Button variant="outline" className="w-full">
-                    <Image src="/placeholder-logo.svg" alt="Google" width={16} height={16} className="mr-2" />
-                    Google
-                  </Button>
-                  <Button variant="outline" className="w-full">
-                    <Image src="/placeholder-logo.svg" alt="Facebook" width={16} height={16} className="mr-2" />
-                    Facebook
-                  </Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={async () => {
+                    const result = await loginWithGoogle()
+                    if (result.success) {
+                      toast({
+                        title: "¡Bienvenido!",
+                        description: "Has iniciado sesión con Google exitosamente.",
+                      })
+                      router.push("/")
+                    } else {
+                      toast({
+                        title: "Error de inicio de sesión",
+                        description: result.error || "Error al conectar con Google.",
+                        variant: "destructive"
+                      })
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {/* Google SVG icon */}
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M21.35 11.1h-9.18v2.92h5.27c-.23 1.23-1.4 3.6-5.27 3.6-3.17 0-5.76-2.62-5.76-5.82s2.59-5.82 5.76-5.82c1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5z"/>
+                    <path fill="#34A853" d="M3.89 7.5l2.4 1.76c.65-1.23 2.01-2.7 5.88-2.7 1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5l3.23 2.5c.4-.75 1.13-1.52 2.05-1.52.89 0 1.62.73 1.62 1.62 0 .89-.73 1.62-1.62 1.62-.92 0-1.65-.77-2.05-1.52l-3.23 2.5c1.44 2.87 4.58 5 8.28 5z"/>
+                    <path fill="#FBBC05" d="M12.17 21.83c2.84 0 5.22-.94 6.96-2.56l-3.21-2.63c-.89.6-2.09.96-3.75.96-3.17 0-5.76-2.62-5.76-5.82 0-.91.23-1.77.63-2.52l-3.23-2.5C2.59 8.35 2.5 10.22 2.5 12.17c0 5.19 4.48 9.66 9.67 9.66z"/>
+                    <path fill="#EA4335" d="M21.35 11.1h-9.18v2.92h5.27c-.23 1.23-1.4 3.6-5.27 3.6-3.17 0-5.76-2.62-5.76-5.82s2.59-5.82 5.76-5.82c1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5l3.23 2.5c.4-.75 1.13-1.52 2.05-1.52.89 0 1.62.73 1.62 1.62 0 .89-.73 1.62-1.62 1.62-.92 0-1.65-.77-2.05-1.52l-3.23 2.5c1.44 2.87 4.58 5 8.28 5z"/>
+                  </svg>
+                  Iniciar sesión con Google
+                </Button>
+                <div className="text-center text-sm text-gray-600 mt-4">
+                  Al crear una cuenta, aceptas nuestros{" "}
+                  <Link href="/terms-of-service" className="text-purple-600 hover:text-purple-700">
+                    Términos de Servicio
+                  </Link>{" "}
+                  y{" "}
+                  <Link href="/privacy-policy" className="text-purple-600 hover:text-purple-700">
+                    Política de Privacidad
+                  </Link>
                 </div>
               </TabsContent>
 
@@ -351,7 +395,46 @@ function LoginForm() {
                   </Button>
                 </form>
 
-                <div className="text-center text-sm text-gray-600">
+                <div className="relative my-6">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-white px-2 text-gray-500">O continúa con</span>
+                  </div>
+                </div>
+
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={async () => {
+                    const result = await loginWithGoogle()
+                    if (result.success) {
+                      toast({
+                        title: "¡Bienvenido!",
+                        description: "Has iniciado sesión con Google exitosamente.",
+                      })
+                      router.push("/")
+                    } else {
+                      toast({
+                        title: "Error de inicio de sesión",
+                        description: result.error || "Error al conectar con Google.",
+                        variant: "destructive"
+                      })
+                    }
+                  }}
+                  disabled={isLoading}
+                >
+                  {/* Google SVG icon */}
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M21.35 11.1h-9.18v2.92h5.27c-.23 1.23-1.4 3.6-5.27 3.6-3.17 0-5.76-2.62-5.76-5.82s2.59-5.82 5.76-5.82c1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5l3.23 2.5c.4-.75 1.13-1.52 2.05-1.52.89 0 1.62.73 1.62 1.62 0 .89-.73 1.62-1.62 1.62-.92 0-1.65-.77-2.05-1.52l-3.23 2.5c1.44 2.87 4.58 5 8.28 5z"/>
+                    <path fill="#34A853" d="M3.89 7.5l2.4 1.76c.65-1.23 2.01-2.7 5.88-2.7 1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5l3.23 2.5c.4-.75 1.13-1.52 2.05-1.52.89 0 1.62.73 1.62 1.62 0 .89-.73 1.62-1.62 1.62-.92 0-1.65-.77-2.05-1.52l-3.23 2.5c1.44 2.87 4.58 5 8.28 5z"/>
+                    <path fill="#FBBC05" d="M12.17 21.83c2.84 0 5.22-.94 6.96-2.56l-3.21-2.63c-.89.6-2.09.96-3.75.96-3.17 0-5.76-2.62-5.76-5.82 0-.91.23-1.77.63-2.52l-3.23-2.5C2.59 8.35 2.5 10.22 2.5 12.17c0 5.19 4.48 9.66 9.67 9.66z"/>
+                    <path fill="#EA4335" d="M21.35 11.1h-9.18v2.92h5.27c-.23 1.23-1.4 3.6-5.27 3.6-3.17 0-5.76-2.62-5.76-5.82s2.59-5.82 5.76-5.82c1.81 0 3.03.77 3.73 1.43l2.55-2.48C17.09 3.59 15.01 2.5 12.17 2.5c-3.7 0-6.84 2.13-8.28 5l3.23 2.5c.4-.75 1.13-1.52 2.05-1.52.89 0 1.62.73 1.62 1.62 0 .89-.73 1.62-1.62 1.62-.92 0-1.65-.77-2.05-1.52l-3.23 2.5c1.44 2.87 4.58 5 8.28 5z"/>
+                  </svg>
+                  Registrarse con Google
+                </Button>
+                <div className="text-center text-sm text-gray-600 mt-4">
                   Al crear una cuenta, aceptas nuestros{" "}
                   <Link href="/terms-of-service" className="text-purple-600 hover:text-purple-700">
                     Términos de Servicio

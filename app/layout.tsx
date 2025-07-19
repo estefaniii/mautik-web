@@ -11,13 +11,24 @@ import { SkipLinks } from "@/components/ui/accessibility"
 import { Toaster } from "@/components/ui/toaster"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import { SessionProvider } from "next-auth/react"
+import ClientProviders from "./client-providers"
+import * as Sentry from '@sentry/nextjs';
+
+if (process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+    tracesSampleRate: 1.0,
+    environment: process.env.NODE_ENV,
+  });
+}
 
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "Mautik - Artesanías Únicas",
-  description: "Descubre nuestra colección de artesanías únicas hechas a mano. Joyería, crochet, llaveros y más.",
-  keywords: "artesanías, joyería, crochet, llaveros, pulseras, collares, anillos, aretes",
+  title: "Mautik - Hecho a Mano & Selección Especial",
+  description: "Descubre piezas únicas hechas a mano y productos seleccionados cuidadosamente. Joyería, crochet, decoración y más.",
+  keywords: "artesanía, diseño, joyería, crochet, accesorios, curaduría, panamá, tienda online, hecho a mano, productos seleccionados",
   authors: [{ name: "Mautik" }],
   creator: "Mautik",
   publisher: "Mautik",
@@ -28,8 +39,8 @@ export const metadata: Metadata = {
   },
   metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'),
   openGraph: {
-    title: "Mautik - Artesanías Únicas",
-    description: "Descubre nuestra colección de artesanías únicas hechas a mano.",
+    title: "Mautik - Hecho a Mano & Selección Especial",
+    description: "Descubre piezas únicas hechas a mano y productos seleccionados cuidadosamente. Joyería, crochet, decoración y más.",
     url: "/",
     siteName: "Mautik",
     images: [
@@ -37,7 +48,7 @@ export const metadata: Metadata = {
         url: "/og-image.jpg",
         width: 1200,
         height: 630,
-        alt: "Mautik - Artesanías Únicas",
+        alt: "Mautik - Hecho a Mano & Selección Especial",
       },
     ],
     locale: "es_ES",
@@ -45,8 +56,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Mautik - Artesanías Únicas",
-    description: "Descubre nuestra colección de artesanías únicas hechas a mano.",
+    title: "Mautik - Hecho a Mano & Selección Especial",
+    description: "Descubre piezas únicas hechas a mano y productos seleccionados cuidadosamente. Joyería, crochet, decoración y más.",
     images: ["/og-image.jpg"],
   },
   robots: {
@@ -104,41 +115,35 @@ export default function RootLayout({
               "contactPoint": {
                 "@type": "ContactPoint",
                 "contactType": "customer service"
-              }
+              },
+              "sameAs": [
+                "https://facebook.com/mautik",
+                "https://instagram.com/mautik"
+              ]
             })
           }}
         />
       </head>
       <body className={inter.className}>
-        <ThemeProvider>
-          <AuthProvider>
-            <CartProvider>
-              <FavoritesProvider>
-                <NotificationProvider>
-                  <WishlistProvider>
-                    <div className="min-h-screen flex flex-col">
-                      <SkipLinks />
-                      
-                      <header id="main-navigation" role="banner">
-                        <Navbar />
-                      </header>
-                      
-                      <main id="main-content" role="main" className="flex-1" style={{ paddingTop: '72px' }}>
-                        {children}
-                      </main>
-                      
-                      <footer id="footer" role="contentinfo">
-                        <Footer />
-                      </footer>
-                    </div>
-                    
-                    <Toaster />
-                  </WishlistProvider>
-                </NotificationProvider>
-              </FavoritesProvider>
-            </CartProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <ClientProviders>
+          <div className="min-h-screen flex flex-col">
+            <SkipLinks />
+            
+            <header id="main-navigation" role="banner">
+              <Navbar />
+            </header>
+            
+            <main id="main-content" role="main" className="flex-1" style={{ paddingTop: '72px' }}>
+              {children}
+            </main>
+            
+            <footer id="footer" role="contentinfo">
+              <Footer />
+            </footer>
+          </div>
+          
+          <Toaster />
+        </ClientProviders>
       </body>
     </html>
   )

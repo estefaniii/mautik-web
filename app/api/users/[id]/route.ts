@@ -74,7 +74,7 @@ export async function PUT(
 			}
 			const isValidPassword = await bcrypt.compare(
 				currentPassword,
-				user.password,
+				user.password || '',
 			);
 			if (!isValidPassword) {
 				return NextResponse.json(

@@ -404,8 +404,8 @@ export default function ProfilePage() {
   }
 
   const getMemberSince = () => {
-    if (!user?.createdAt) return "Reciente"
-    const date = new Date(user.createdAt)
+    if (!(user as any)?.createdAt) return "Reciente"
+    const date = new Date((user as any).createdAt)
     return date.toLocaleDateString('es-ES', { 
       year: 'numeric', 
       month: 'long', 
@@ -465,533 +465,561 @@ export default function ProfilePage() {
               <p className="text-gray-600 text-lg">Gestiona tu perfil, pedidos y preferencias</p>
             </div>
 
-            <Tabs defaultValue="profile" className="space-y-8">
-              <TabsList className="grid w-full grid-cols-6 bg-white shadow-lg">
-                <TabsTrigger value="profile" className="flex items-center gap-2">
-                  <User className="h-4 w-4" />
-                  Perfil
+            {/* Barra de navegación horizontal SIEMPRE arriba del contenido */}
+            <Tabs defaultValue="profile" className="w-full max-w-3xl mx-auto mb-8">
+              <TabsList
+                className="grid grid-cols-5 w-full bg-white rounded-lg h-14 gap-2 border border-gray-200"
+              >
+                <TabsTrigger value="profile" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-purple-800 text-base font-medium">
+                  <User className="h-5 w-5" />
+                  <span className="hidden md:inline">Perfil</span>
                 </TabsTrigger>
-                <TabsTrigger value="orders" className="flex items-center gap-2">
-                  <ShoppingBag className="h-4 w-4" />
-                  Pedidos
+                <TabsTrigger value="orders" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-green-800 text-base font-medium">
+                  <ShoppingBag className="h-5 w-5" />
+                  <span className="hidden md:inline">Pedidos</span>
                 </TabsTrigger>
-                <TabsTrigger value="favorites" className="flex items-center gap-2">
-                  <Heart className="h-4 w-4" />
-                  Favoritos
+                <TabsTrigger value="favorites" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-pink-800 text-base font-medium">
+                  <Heart className="h-5 w-5" />
+                  <span className="hidden md:inline">Favoritos</span>
                 </TabsTrigger>
-                <TabsTrigger value="settings" className="flex items-center gap-2">
-                  <Settings className="h-4 w-4" />
-                  Configuración
+                <TabsTrigger value="settings" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-blue-800 text-base font-medium">
+                  <Settings className="h-5 w-5" />
+                  <span className="hidden md:inline">Configuración</span>
                 </TabsTrigger>
-                <TabsTrigger value="security" className="flex items-center gap-2">
-                  <Shield className="h-4 w-4" />
-                  Seguridad
+                <TabsTrigger value="security" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-gray-800 text-base font-medium">
+                  <Shield className="h-5 w-5" />
+                  <span className="hidden md:inline">Seguridad</span>
                 </TabsTrigger>
               </TabsList>
-
               <TabsContent value="profile" className="space-y-6">
-                <Card className="shadow-lg border-0">
-                  <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="text-white">Información Personal</CardTitle>
-                        <CardDescription className="text-purple-100">
-                          Actualiza tu información personal y de contacto
-                        </CardDescription>
-                      </div>
-                      {!isEditing ? (
-                        <Button onClick={() => setIsEditing(true)} variant="secondary" className="bg-white/20 hover:bg-white/30">
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-                      ) : (
-                        <div className="flex gap-2">
-                          <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
-                            <Save className="h-4 w-4 mr-2" />
-                            {isSaving ? "Guardando..." : "Guardar"}
-                          </Button>
-                          <Button onClick={handleCancel} variant="secondary" size="sm">
-                            <X className="h-4 w-4 mr-2" />
-                            Cancelar
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    <div className="flex items-center space-x-6 mb-8">
-                      <ProfileAvatar
-                        currentImage={user?.avatar}
-                        userName={user?.name || "Usuario"}
-                        onImageChange={handleImageChange}
-                        size="lg"
-                        isEditing={isEditing}
-                      />
-                      <div className="flex-1">
-                        <h3 className="text-2xl font-bold text-gray-900">{user?.name}</h3>
-                        <p className="text-gray-600 flex items-center gap-2">
-                          <Mail className="h-4 w-4" />
-                          {user?.email}
-                        </p>
-                        <div className="flex items-center gap-4 mt-2">
-                          {user?.isAdmin && (
-                            <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                              <Shield className="h-3 w-3 mr-1" />
-                              Administrador
-                            </Badge>
-                          )}
-                          <Badge variant="outline" className="text-gray-600">
-                            <Calendar className="h-3 w-3 mr-1" />
-                            Miembro desde {getMemberSince()}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-
-                    <Separator className="my-6" />
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="space-y-2">
-                        <Label htmlFor="name" className="text-sm font-medium">Nombre completo</Label>
-                        <div className="relative">
-                          <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input
-                            id="name"
-                            value={editForm.name}
-                            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                            disabled={!isEditing}
-                            className="pl-10 h-12"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input
-                            id="email"
-                            type="email"
-                            value={editForm.email}
-                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                            disabled={!isEditing}
-                            className="pl-10 h-12"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="phone" className="text-sm font-medium">Teléfono</Label>
-                        <div className="relative">
-                          <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                          <Input
-                            id="phone"
-                            value={editForm.phone}
-                            onChange={(e) => {
-                              setEditForm({ ...editForm, phone: e.target.value })
-                              setPhoneError(null)
-                            }}
-                            disabled={!isEditing}
-                            className="pl-10 h-12"
-                          />
-                          {phoneError && (
-                            <div className="text-red-500 text-xs mt-1">{phoneError}</div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-4 mt-8">
-                      <div className="flex items-center space-x-2">
-                        <MapPin className="h-5 w-5 text-purple-600" />
-                        <h4 className="font-semibold text-lg">Dirección de Envío</h4>
-                      </div>
-                      {isEditing ? (
-                        <AddressForm
-                          initialAddress={editForm.address}
-                          onSave={async (address: Address) => {
-                            await handleSaveAddress(address)
-                          }}
-                          loading={isLoading}
-                          disabled={isLoading}
-                        />
-                      ) : (
-                        <div className="space-y-1">
-                          <div><strong>Calle:</strong> {user?.address?.street || "-"}</div>
-                          <div><strong>Ciudad:</strong> {user?.address?.city || "-"}</div>
-                          <div><strong>Provincia/Estado:</strong> {user?.address?.state || "-"}</div>
-                          <div><strong>Código Postal:</strong> {user?.address?.zipCode || "-"}</div>
-                          <div><strong>País:</strong> {user?.address?.country || "-"}</div>
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="orders" className="space-y-6">
-                <Card className="shadow-lg border-0">
-                  <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center text-white">
-                      <ShoppingBag className="h-6 w-6 mr-3" />
-                      Mis Pedidos
-                    </CardTitle>
-                    <CardDescription className="text-green-100">
-                      Historial de todos tus pedidos y su estado
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {loadingOrders ? (
-                      <div className="text-center py-12">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-4"></div>
-                        <p className="text-gray-600">Cargando pedidos...</p>
-                      </div>
-                    ) : orders.length > 0 ? (
-                      <div className="space-y-6">
-                        {orders.map((order) => (
-                          <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
-                            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                              <div>
-                                <span className="font-semibold">Pedido:</span> {order.orderNumber || order.id}
-                                <span className="ml-4 font-semibold">Fecha:</span> {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
-                              </div>
-                              <div>
-                                <Badge variant="outline" className="capitalize">
-                                  {order.status}
-                                </Badge>
-                                {order.isPaid && <Badge variant="secondary" className="ml-2">Pagado</Badge>}
-                              </div>
-                            </div>
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full text-sm">
-                                <thead>
-                                  <tr>
-                                    <th className="text-left p-2">Producto</th>
-                                    <th className="text-left p-2">Cantidad</th>
-                                    <th className="text-left p-2">Precio</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {order.items.map((item: any, idx: number) => (
-                                    <tr key={idx}>
-                                      <td className="p-2 flex items-center gap-2">
-                                        <img src={item.image || (item.product && item.product.images && item.product.images[0]) || '/placeholder.svg'} alt={item.name} className="w-10 h-10 object-cover rounded" />
-                                        <span>{item.name || (item.product && item.product.name)}</span>
-                                      </td>
-                                      <td className="p-2">{item.quantity}</td>
-                                      <td className="p-2">${item.price.toFixed(2)}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <div className="flex justify-end mt-2">
-                              <span className="font-semibold">Total: ${order.total?.toFixed(2) || 'N/A'}</span>
-                            </div>
+                    <Card className="shadow-lg border-0">
+                      <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-white">Información Personal</CardTitle>
+                            <CardDescription className="text-purple-100">
+                              Actualiza tu información personal y de contacto
+                            </CardDescription>
                           </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                          <ShoppingBag className="h-12 w-12 text-green-600" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay pedidos aún</h3>
-                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                          Cuando hagas tu primer pedido, aparecerá aquí con todos los detalles y el estado de seguimiento.
-                        </p>
-                        <Link href="/shop">
-                          <Button size="lg" className="bg-green-600 hover:bg-green-700">
-                            <ShoppingBag className="h-5 w-5 mr-2" />
-                            Ir a la Tienda
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="favorites" className="space-y-6">
-                <Card className="shadow-lg border-0">
-                  <CardHeader className="bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center text-white">
-                      <Heart className="h-6 w-6 mr-3" />
-                      Mis Favoritos
-                    </CardTitle>
-                    <CardDescription className="text-pink-100">
-                      Productos que has marcado como favoritos
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {favorites && favorites.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {getFavoriteProducts().map((product) => (
-                          <ProductCard key={product.id} product={product} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-12">
-                        <div className="bg-pink-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                          <Heart className="h-12 w-12 text-pink-600" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay favoritos aún</h3>
-                        <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                          Marca productos como favoritos para verlos aquí y acceder rápidamente a ellos.
-                        </p>
-                        <Link href="/shop">
-                          <Button size="lg" className="bg-pink-600 hover:bg-pink-700">
-                            <Heart className="h-5 w-5 mr-2" />
-                            Explorar Productos
-                          </Button>
-                        </Link>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="settings" className="space-y-6">
-                <Card className="shadow-lg border-0">
-                  <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center text-white">
-                      <Settings className="h-6 w-6 mr-3" />
-                      Configuración de Notificaciones
-                    </CardTitle>
-                    <CardDescription className="text-blue-100">
-                      Gestiona cómo recibes las notificaciones
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-6">
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-blue-100 p-2 rounded-lg">
-                          <Bell className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">Notificaciones por email</h4>
-                          <p className="text-sm text-gray-600">Recibe actualizaciones sobre tus pedidos</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={settings.emailNotifications}
-                        onCheckedChange={(checked) => setSettings({...settings, emailNotifications: checked})}
-                      />
-                    </div>
-                    
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-green-100 p-2 rounded-lg">
-                          <Phone className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">Notificaciones SMS</h4>
-                          <p className="text-sm text-gray-600">Recibe alertas por mensaje de texto</p>
-                        </div>
-                      </div>
-                      <Switch
-                        checked={settings.smsNotifications}
-                        onCheckedChange={(checked) => setSettings({...settings, smsNotifications: checked})}
-                      />
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 p-3 rounded-xl shadow-md">
-                          {isDarkMode ? (
-                            <Sun className="h-6 w-6 text-yellow-500" />
+                          {!isEditing ? (
+                            <Button onClick={() => setIsEditing(true)} variant="secondary" className="bg-white/20 hover:bg-white/30">
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
                           ) : (
-                            <Moon className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                            <div className="flex gap-2">
+                              <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
+                                <Save className="h-4 w-4 mr-2" />
+                                {isSaving ? "Guardando..." : "Guardar"}
+                              </Button>
+                              <Button onClick={handleCancel} variant="secondary" size="sm">
+                                <X className="h-4 w-4 mr-2" />
+                                Cancelar
+                              </Button>
+                            </div>
                           )}
                         </div>
-                        <div>
-                          <h4 className="font-semibold text-gray-900 dark:text-gray-100">Modo oscuro</h4>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">
-                            {isDarkMode ? "Activa el modo claro para una experiencia más brillante" : "Activa el modo oscuro para una experiencia más suave"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="relative">
-                        <Switch
-                          checked={isDarkMode}
-                          onCheckedChange={handleDarkModeToggle}
-                          className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-blue-500"
-                        />
-                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full opacity-0 transition-opacity duration-300 pointer-events-none"></div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              <TabsContent value="security" className="space-y-6">
-                <Card className="shadow-lg border-0">
-                  <CardHeader className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-t-lg">
-                    <CardTitle className="flex items-center text-white">
-                      <Shield className="h-6 w-6 mr-3" />
-                      Seguridad de la Cuenta
-                    </CardTitle>
-                    <CardDescription className="text-red-100">
-                      Gestiona la seguridad de tu cuenta
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6 space-y-6">
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-blue-100 p-2 rounded-lg">
-                          <Lock className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                          <h4 className="font-semibold">Cambiar contraseña</h4>
-                          <p className="text-sm text-gray-600">Actualiza tu contraseña de seguridad</p>
-                        </div>
-                      </div>
-                      <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="outline" size="sm">
-                            Cambiar
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent className="sm:max-w-md">
-                          <DialogHeader>
-                            <DialogTitle>Cambiar Contraseña</DialogTitle>
-                            <DialogDescription>
-                              Ingresa tu contraseña actual y la nueva contraseña.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <div className="space-y-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="currentPassword">Contraseña actual</Label>
-                              <div className="relative">
-                                <Input
-                                  id="currentPassword"
-                                  type={showPassword.current ? "text" : "password"}
-                                  value={passwordForm.currentPassword}
-                                  onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                                  className="pr-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowPassword({...showPassword, current: !showPassword.current})}
-                                >
-                                  {showPassword.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                          <div className="w-full grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 items-center md:items-start">
+                            <div className="flex justify-center md:justify-start">
+                              <ProfileAvatar
+                                currentImage={user?.avatar}
+                                userName={user?.name || 'Usuario'}
+                                onImageChange={handleImageChange}
+                                size="lg"
+                                isEditing={isEditing}
+                              />
                             </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="newPassword">Nueva contraseña</Label>
-                              <div className="relative">
-                                <Input
-                                  id="newPassword"
-                                  type={showPassword.new ? "text" : "password"}
-                                  value={passwordForm.newPassword}
-                                  onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                                  className="pr-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowPassword({...showPassword, new: !showPassword.new})}
-                                >
-                                  {showPassword.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <Label htmlFor="confirmPassword">Confirmar nueva contraseña</Label>
-                              <div className="relative">
-                                <Input
-                                  id="confirmPassword"
-                                  type={showPassword.confirm ? "text" : "password"}
-                                  value={passwordForm.confirmPassword}
-                                  onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                                  className="pr-10"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                  onClick={() => setShowPassword({...showPassword, confirm: !showPassword.confirm})}
-                                >
-                                  {showPassword.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                </Button>
+                            <div className="flex flex-col w-full md:bg-gray-50 md:rounded-xl md:p-6 md:shadow-sm md:border md:ml-0">
+                              <h3 className="text-3xl font-extrabold text-gray-900 break-words w-full text-center md:text-left mb-2 md:mb-4">{user?.name}</h3>
+                              <div className="flex flex-col md:flex-row md:items-center md:gap-4 w-full">
+                                <p className="text-gray-600 flex items-center gap-2 break-all w-full text-center md:text-left md:w-auto md:mb-0 mb-2">
+                                  <Mail className="h-4 w-4 shrink-0" />
+                                  <span className="break-all">{user?.email}</span>
+                                </p>
+                                <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 w-full md:w-auto">
+                                  {user?.isAdmin && (
+                                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
+                                      <Shield className="h-3 w-3 mr-1" />
+                                      Administrador
+                                    </Badge>
+                                  )}
+                                  <Badge variant="outline" className="text-gray-600">
+                                    <Calendar className="h-3 w-3 mr-1" />
+                                    Miembro desde {getMemberSince()}
+                                  </Badge>
+                                </div>
                               </div>
                             </div>
                           </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
-                              Cancelar
-                            </Button>
-                            <Button onClick={handlePasswordChange}>
-                              Cambiar Contraseña
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
+                        <Separator className="my-6" />
 
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-red-100 p-2 rounded-lg">
-                          <Trash2 className="h-5 w-5 text-red-600" />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="space-y-2">
+                            <Label htmlFor="name" className="text-sm font-medium">Nombre completo</Label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                id="name"
+                                value={editForm.name}
+                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                                disabled={!isEditing}
+                                className="pl-10 h-12"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                id="email"
+                                type="email"
+                                value={editForm.email}
+                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                                disabled={!isEditing}
+                                className="pl-10 h-12"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="phone" className="text-sm font-medium">Teléfono</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                id="phone"
+                                value={editForm.phone}
+                                onChange={(e) => {
+                                  setEditForm({ ...editForm, phone: e.target.value })
+                                  setPhoneError(null)
+                                }}
+                                disabled={!isEditing}
+                                className="pl-10 h-12"
+                              />
+                              {phoneError && (
+                                <div className="text-red-500 text-xs mt-1">{phoneError}</div>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <h4 className="font-semibold">Eliminar cuenta</h4>
-                          <p className="text-sm text-gray-600">Elimina permanentemente tu cuenta</p>
+
+                        <div className="space-y-4 mt-8">
+                          <div className="flex items-center space-x-2">
+                            <MapPin className="h-5 w-5 text-purple-600" />
+                            <h4 className="font-semibold text-lg">Dirección de Envío</h4>
+                          </div>
+                          {isEditing ? (
+                            <AddressForm
+                              initialAddress={editForm.address}
+                              onSave={async (address: Address) => {
+                                await handleSaveAddress(address)
+                              }}
+                              loading={isLoading}
+                              disabled={isLoading}
+                            />
+                          ) : (
+                            <div className="space-y-1">
+                              <div><strong>Calle:</strong> {user?.address?.street || "-"}</div>
+                              <div><strong>Ciudad:</strong> {user?.address?.city || "-"}</div>
+                              <div><strong>Provincia/Estado:</strong> {user?.address?.state || "-"}</div>
+                              <div><strong>Código Postal:</strong> {user?.address?.zipCode || "-"}</div>
+                              <div><strong>País:</strong> {user?.address?.country || "-"}</div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                        <DialogTrigger asChild>
-                          <Button variant="destructive" size="sm">
-                            Eliminar
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="orders" className="space-y-6">
+                    <Card className="shadow-lg border-0">
+                      <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center text-white">
+                          <ShoppingBag className="h-6 w-6 mr-3" />
+                          Mis Pedidos
+                        </CardTitle>
+                        <CardDescription className="text-green-100">
+                          Historial de todos tus pedidos y su estado
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {loadingOrders ? (
+                          <div className="text-center py-12">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-4"></div>
+                            <p className="text-gray-600">Cargando pedidos...</p>
+                          </div>
+                        ) : orders.length > 0 ? (
+                          <div className="space-y-6">
+                            {orders.map((order) => (
+                              <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
+                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
+                                  <div>
+                                    <span className="font-semibold">Pedido:</span> {order.orderNumber || order.id}
+                                    <span className="ml-4 font-semibold">Fecha:</span> {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
+                                  </div>
+                                  <div>
+                                    <Badge variant="outline" className="capitalize">
+                                      {order.status}
+                                    </Badge>
+                                    {order.isPaid && <Badge variant="secondary" className="ml-2">Pagado</Badge>}
+                                  </div>
+                                </div>
+                                <div className="overflow-x-auto">
+                                  <table className="min-w-full text-sm">
+                                    <thead>
+                                      <tr>
+                                        <th className="text-left p-2">Producto</th>
+                                        <th className="text-left p-2">Cantidad</th>
+                                        <th className="text-left p-2">Precio</th>
+                                      </tr>
+                                    </thead>
+                                    <tbody>
+                                      {order.items.map((item: any, idx: number) => (
+                                        <tr key={idx}>
+                                          <td className="p-2 flex items-center gap-2">
+                                            <img src={item.image || (item.product && item.product.images && item.product.images[0]) || '/placeholder.svg'} alt={item.name} className="w-10 h-10 object-cover rounded" />
+                                            <span>{item.name || (item.product && item.product.name)}</span>
+                                          </td>
+                                          <td className="p-2">{item.quantity}</td>
+                                          <td className="p-2">${item.price.toFixed(2)}</td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                </div>
+                                <div className="flex justify-end mt-2">
+                                  <span className="font-semibold">Total: ${order.total?.toFixed(2) || 'N/A'}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                              <ShoppingBag className="h-12 w-12 text-green-600" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay pedidos aún</h3>
+                            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                              Cuando hagas tu primer pedido, aparecerá aquí con todos los detalles y el estado de seguimiento.
+                            </p>
+                            <Link href="/shop">
+                              <Button size="lg" className="bg-green-600 hover:bg-green-700">
+                                <ShoppingBag className="h-5 w-5 mr-2" />
+                                Ir a la Tienda
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="favorites" className="space-y-6">
+                    <Card className="shadow-lg border-0">
+                      <CardHeader className="bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center text-white">
+                          <Heart className="h-6 w-6 mr-3" />
+                          Mis Favoritos
+                        </CardTitle>
+                        <CardDescription className="text-pink-100">
+                          Productos que has marcado como favoritos
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        {favorites && favorites.length > 0 ? (
+                          <>
+                            <div className="flex flex-row items-center gap-1 mt-4 mb-6 w-full overflow-x-auto min-w-0 px-1 sm:px-0">
+                              {/* Filtro */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707l-6.414 6.414A1 1 0 0013 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 017 17v-3.586a1 1 0 00-.293-.707L3.293 6.707A1 1 0 013 6V4z" /></svg>
+                                <select className="rounded border px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs max-w-[120px] sm:max-w-[160px]">
+                                  <option>Todas las...</option>
+                                </select>
+                              </div>
+                              {/* Orden */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18" /></svg>
+                                <select className="rounded border px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs max-w-[120px] sm:max-w-[160px]">
+                                  <option>Más recientes</option>
+                                </select>
+                              </div>
+                              {/* Botones de vista */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button className="rounded p-0.5 sm:p-1 bg-purple-600 text-white"><svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg></button>
+                                <button className="rounded p-0.5 sm:p-1 bg-white border"><svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" /><rect x="3" y="10" width="18" height="4" /><rect x="3" y="16" width="18" height="4" /></svg></button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+                              {getFavoriteProducts().map((product) => (
+                                <ProductCard key={product.id} product={product} />
+                              ))}
+                            </div>
+                          </>
+                        ) : (
+                          <div className="text-center py-12">
+                            <div className="bg-pink-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
+                              <Heart className="h-12 w-12 text-pink-600" />
+                            </div>
+                            <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay favoritos aún</h3>
+                            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                              Marca productos como favoritos para verlos aquí y acceder rápidamente a ellos.
+                            </p>
+                            <Link href="/shop">
+                              <Button size="lg" className="bg-pink-600 hover:bg-pink-700">
+                                <Heart className="h-5 w-5 mr-2" />
+                                Explorar Productos
+                              </Button>
+                            </Link>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="settings" className="space-y-6">
+                    <Card className="shadow-lg border-0">
+                      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center text-white">
+                          <Settings className="h-6 w-6 mr-3" />
+                          Configuración de Notificaciones
+                        </CardTitle>
+                        <CardDescription className="text-blue-100">
+                          Gestiona cómo recibes las notificaciones
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-blue-100 p-2 rounded-lg">
+                              <Bell className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">Notificaciones por email</h4>
+                              <p className="text-sm text-gray-600">Recibe actualizaciones sobre tus pedidos</p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={settings.emailNotifications}
+                            onCheckedChange={(checked) => setSettings({...settings, emailNotifications: checked})}
+                          />
+                        </div>
+                        
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-green-100 p-2 rounded-lg">
+                              <Phone className="h-5 w-5 text-green-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">Notificaciones SMS</h4>
+                              <p className="text-sm text-gray-600">Recibe alertas por mensaje de texto</p>
+                            </div>
+                          </div>
+                          <Switch
+                            checked={settings.smsNotifications}
+                            onCheckedChange={(checked) => setSettings({...settings, smsNotifications: checked})}
+                          />
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 p-3 rounded-xl shadow-md">
+                              {isDarkMode ? (
+                                <Sun className="h-6 w-6 text-yellow-500" />
+                              ) : (
+                                <Moon className="h-6 w-6 text-gray-600 dark:text-gray-300" />
+                              )}
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Modo oscuro</h4>
+                              <p className="text-sm text-gray-600 dark:text-gray-400">
+                                {isDarkMode ? "Activa el modo claro para una experiencia más brillante" : "Activa el modo oscuro para una experiencia más suave"}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="relative">
+                            <Switch
+                              checked={isDarkMode}
+                              onCheckedChange={handleDarkModeToggle}
+                              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-blue-500"
+                            />
+                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+
+                  <TabsContent value="security" className="space-y-6">
+                    <Card className="shadow-lg border-0">
+                      <CardHeader className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-t-lg">
+                        <CardTitle className="flex items-center text-white">
+                          <Shield className="h-6 w-6 mr-3" />
+                          Seguridad de la Cuenta
+                        </CardTitle>
+                        <CardDescription className="text-red-100">
+                          Gestiona la seguridad de tu cuenta
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-6 space-y-6">
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-blue-100 p-2 rounded-lg">
+                              <Lock className="h-5 w-5 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">Cambiar contraseña</h4>
+                              <p className="text-sm text-gray-600">Actualiza tu contraseña de seguridad</p>
+                            </div>
+                          </div>
+                          <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
+                            <DialogTrigger asChild>
+                              <Button variant="outline" size="sm">
+                                Cambiar
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent className="sm:max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Cambiar Contraseña</DialogTitle>
+                                <DialogDescription>
+                                  Ingresa tu contraseña actual y la nueva contraseña.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="space-y-4">
+                                <div className="space-y-2">
+                                  <Label htmlFor="currentPassword">Contraseña actual</Label>
+                                  <div className="relative">
+                                    <Input
+                                      id="currentPassword"
+                                      type={showPassword.current ? "text" : "password"}
+                                      value={passwordForm.currentPassword}
+                                      onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
+                                      className="pr-10"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                      onClick={() => setShowPassword({...showPassword, current: !showPassword.current})}
+                                    >
+                                      {showPassword.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="newPassword">Nueva contraseña</Label>
+                                  <div className="relative">
+                                    <Input
+                                      id="newPassword"
+                                      type={showPassword.new ? "text" : "password"}
+                                      value={passwordForm.newPassword}
+                                      onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
+                                      className="pr-10"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                      onClick={() => setShowPassword({...showPassword, new: !showPassword.new})}
+                                    >
+                                      {showPassword.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="confirmPassword">Confirmar nueva contraseña</Label>
+                                  <div className="relative">
+                                    <Input
+                                      id="confirmPassword"
+                                      type={showPassword.confirm ? "text" : "password"}
+                                      value={passwordForm.confirmPassword}
+                                      onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
+                                      className="pr-10"
+                                    />
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                      onClick={() => setShowPassword({...showPassword, confirm: !showPassword.confirm})}
+                                    >
+                                      {showPassword.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
+                                  Cancelar
+                                </Button>
+                                <Button onClick={handlePasswordChange}>
+                                  Cambiar Contraseña
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-red-100 p-2 rounded-lg">
+                              <Trash2 className="h-5 w-5 text-red-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">Eliminar cuenta</h4>
+                              <p className="text-sm text-gray-600">Elimina permanentemente tu cuenta</p>
+                            </div>
+                          </div>
+                          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                            <DialogTrigger asChild>
+                              <Button variant="destructive" size="sm">
+                                Eliminar
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>¿Estás seguro?</DialogTitle>
+                                <DialogDescription>
+                                  Esta acción no se puede deshacer. Se eliminará permanentemente tu cuenta y todos tus datos.
+                                </DialogDescription>
+                              </DialogHeader>
+                              <DialogFooter>
+                                <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                                  Cancelar
+                                </Button>
+                                <Button variant="destructive" onClick={handleDeleteAccount}>
+                                  Sí, eliminar cuenta
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
+
+                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="flex items-center space-x-3">
+                            <div className="bg-gray-100 p-2 rounded-lg">
+                              <LogOut className="h-5 w-5 text-gray-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold">Cerrar sesión</h4>
+                              <p className="text-sm text-gray-600">Cierra tu sesión actual</p>
+                            </div>
+                          </div>
+                          <Button variant="outline" size="sm" onClick={logout}>
+                            Cerrar Sesión
                           </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>¿Estás seguro?</DialogTitle>
-                            <DialogDescription>
-                              Esta acción no se puede deshacer. Se eliminará permanentemente tu cuenta y todos tus datos.
-                            </DialogDescription>
-                          </DialogHeader>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                              Cancelar
-                            </Button>
-                            <Button variant="destructive" onClick={handleDeleteAccount}>
-                              Sí, eliminar cuenta
-                            </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
-                    </div>
-
-                    <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center space-x-3">
-                        <div className="bg-gray-100 p-2 rounded-lg">
-                          <LogOut className="h-5 w-5 text-gray-600" />
                         </div>
-                        <div>
-                          <h4 className="font-semibold">Cerrar sesión</h4>
-                          <p className="text-sm text-gray-600">Cierra tu sesión actual</p>
-                        </div>
-                      </div>
-                      <Button variant="outline" size="sm" onClick={logout}>
-                        Cerrar Sesión
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            </Tabs>
+                      </CardContent>
+                    </Card>
+                  </TabsContent>
+                </Tabs>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-    </AuthGuard>
-  )
-}
+        </AuthGuard>
+      );
+    }

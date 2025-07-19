@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { notFound, useRouter } from "next/navigation"
+import { useRouter } from "next/navigation"
 import Image from "next/image"
 import type { Product } from "@/types/product"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"

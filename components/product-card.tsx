@@ -3,6 +3,7 @@
 import React, { useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
+import LazyImage from '@/components/ui/lazy-image'
 import { Button } from "@/components/ui/button"
 import { Heart, ShoppingCart, Star } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
@@ -21,7 +22,6 @@ export default function ProductCard({ product }: ProductCardProps) {
   const { isFavorite, toggleFavorite } = useFavorites()
   const [imageError, setImageError] = useState(false)
 
-  // Usar solo 'id' para productos (Prisma/Postgres)
   const productId = product.id
 
   const handleAddToCart = (e: React.MouseEvent) => {
@@ -51,7 +51,6 @@ export default function ProductCard({ product }: ProductCardProps) {
     setImageError(true)
   }
 
-  // Obtener la imagen del producto o usar placeholder
   const getProductImage = () => {
     if (imageError || !product.images || product.images.length === 0) {
       return "/placeholder.jpg"
@@ -62,23 +61,20 @@ export default function ProductCard({ product }: ProductCardProps) {
   return (
     <div className="group bg-white dark:bg-gray-900/50 backdrop-blur-sm rounded-xl shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:-translate-y-2 product-card-hover h-full flex flex-col border border-gray-200/50 dark:border-gray-700/50 hover:border-purple-300/50 dark:hover:border-purple-500/50">
       <div className="relative">
-        {/* Make the image clickable */}
         <Link href={`/product/${productId}`} className="block relative h-40 md:h-64 w-full overflow-hidden">
-          <Image 
-            src={getProductImage()} 
-            alt={product.name} 
-            fill 
+          <LazyImage
+            src={getProductImage()}
+            alt={product.name}
+            fill
             className="object-cover transition-all duration-500 group-hover:scale-110"
             onError={handleImageError}
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
             priority={false}
           />
           
-          {/* Gradient overlay on hover */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
         </Link>
 
-        {/* Product badges */}
         <div className="absolute top-3 left-3 z-20 flex flex-col gap-2">
           {(product.discount ?? 0) > 0 && (
             <Badge className="bg-gradient-to-r from-red-500/90 to-red-400/80 text-white flex items-center badge-anim shadow-md backdrop-blur-sm">
@@ -98,7 +94,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           )}
         </div>
 
-        {/* Favorite button */}
         <button
           onClick={handleToggleFavorite}
           className="absolute top-3 right-3 z-20 p-2 bg-white/90 dark:bg-gray-900/90 rounded-full shadow-lg hover:shadow-xl transition-all duration-300 group/fav"
@@ -114,7 +109,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           />
         </button>
 
-        {/* Quick add to cart button */}
         <div className="absolute bottom-3 left-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-2 group-hover:translate-y-0">
           <Button
             onClick={handleAddToCart}
@@ -129,7 +123,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       </div>
 
       <div className="p-3 md:p-5 flex flex-col flex-grow">
-        {/* Make the title clickable */}
         <Link href={`/product/${productId}`} className="block group/title">
           <h3 className="text-base md:text-lg font-semibold text-gray-800 dark:text-gray-100 mb-1 line-clamp-1 group-hover/title:text-purple-800 dark:group-hover/title:text-purple-300 transition-colors">
             {product.name}

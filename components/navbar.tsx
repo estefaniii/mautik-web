@@ -1,6 +1,5 @@
 "use client"
 
-import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { Heart, ShoppingCart, User, Search, ChevronDown, ChevronUp, Menu, X, LogOut, Settings, User as UserIcon, Box, Moon, Sun } from "lucide-react"
@@ -190,6 +189,15 @@ export default function Navbar() {
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const navbarHeight = isScrolled ? 56 : 72;
 
+  // Determinar si el avatar es de Google
+  const isGoogleAvatar = user?.avatar && user.avatar.includes('googleusercontent');
+  // Usar src directo si es de Google, si no, agregar ?t=updatedAt para refrescar solo si es propio
+  const avatarSrc = user?.avatar
+    ? isGoogleAvatar
+      ? user.avatar
+      : user.avatar + (user.updatedAt ? `?t=${new Date(user.updatedAt).getTime()}` : '')
+    : undefined;
+
   return (
     <header
       className={`w-full z-50 transition-all duration-300 ease-in-out will-change-transform fixed top-0 left-0 ${isScrolled ? "bg-white/95 dark:bg-gray-950/95 shadow-lg py-2" : "bg-white/90 dark:bg-gray-950/90 py-4"} backdrop-blur-xl border-b border-gray-200/50 dark:border-gray-700/50 md:py-2`}
@@ -302,10 +310,10 @@ export default function Navbar() {
                 <DropdownMenuTrigger asChild>
                   <button className="flex items-center space-x-2 focus:outline-none">
                     <Avatar className="h-8 w-8">
-                      {user.avatar ? (
-                        <AvatarImage src={user.avatar} alt={user.name || "Usuario"} />
+                      {user?.avatar ? (
+                        <AvatarImage src={avatarSrc} alt={user?.name || "Usuario"} />
                       ) : (
-                        <AvatarFallback>{getUserInitials(user.name || "U")}</AvatarFallback>
+                        <AvatarFallback>{getUserInitials(user?.name || "U")}</AvatarFallback>
                       )}
                     </Avatar>
                     <span className="hidden md:inline text-gray-700 dark:text-gray-200 font-medium">{user.name?.split(" ")[0]}</span>
@@ -320,7 +328,9 @@ export default function Navbar() {
                     <Link href="/orders" className="flex items-center gap-2"><Box className="h-6 w-6 text-purple-800 dark:text-purple-300" /> Pedidos</Link>
                   </DropdownMenuItem>
                   <DropdownMenuItem asChild>
-                    <Link href="/admin" className="flex items-center gap-2"><Settings className="h-6 w-6 text-purple-800 dark:text-purple-300" /> Admin</Link>
+                    {user.isAdmin && (
+                      <Link href="/admin" className="flex items-center gap-2"><Settings className="h-6 w-6 text-purple-800 dark:text-purple-300" /> Admin</Link>
+                    )}
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleLogout} className="flex items-center gap-2 text-red-600"><LogOut className="h-6 w-6" /> Cerrar sesión</DropdownMenuItem>

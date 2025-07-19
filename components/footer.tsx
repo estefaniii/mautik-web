@@ -30,7 +30,7 @@ export default function Footer() {
               </span>
             </div>
             <p className="text-gray-300 dark:text-gray-400 mb-4 max-w-md">
-              Descubre la belleza de la artesanía panameña. Cada pieza cuenta una historia única de pasión y dedicación.
+              Hecho a mano, seleccionado con amor, pensado para ti. Descubre lo mejor del arte.
             </p>
             <div className="flex space-x-4">
               <a 
