@@ -1,3 +1,7 @@
+// Ruta de ejemplo de Sentry deshabilitada temporalmente para evitar dependencias innecesarias en build.
+// TODO: Habilitar solo si se va a usar Sentry en endpoints personalizados.
+
+/*
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -12,3 +16,4 @@ export function GET() {
   throw new SentryExampleAPIError("This error is raised on the backend called by the example page.");
   return NextResponse.json({ data: "Testing Sentry Error..." });
 }
+*/

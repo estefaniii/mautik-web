@@ -1,3 +1,7 @@
+// Ruta deshabilitada temporalmente para evitar errores de build por falta de API key de Resend.
+// TODO: Habilitar e implementar cuando se vaya a usar el email masivo.
+
+/*
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { Resend } from 'resend';
@@ -80,3 +84,4 @@ export async function POST(req: NextRequest) {
 		);
 	}
 }
+*/
