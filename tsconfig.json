@@ -33,7 +33,8 @@
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
-    "**/*.tsx"
+    "**/*.tsx",
+    "app/api/admin/mass-mail/route.ts.disabled"
   ],
   "exclude": [
     "node_modules"
