@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { Resend } from 'resend';
+import { resend } from '@/lib/resend';
 import crypto from 'crypto';
 import { rateLimit } from '@/lib/rate-limit';
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
 const BASE_URL = process.env.NEXTAUTH_URL || 'http://localhost:3000';
 
 export async function POST(request: NextRequest) {
@@ -16,6 +15,12 @@ export async function POST(request: NextRequest) {
 				error: `Demasiados intentos. Intenta de nuevo en ${retryAfter} segundos.`,
 			},
 			{ status: 429 },
+		);
+	}
+	if (!resend) {
+		return new Response(
+			JSON.stringify({ error: 'Resend API key not configured' }),
+			{ status: 500 },
 		);
 	}
 	try {
