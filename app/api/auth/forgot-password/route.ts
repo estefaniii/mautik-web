@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 			where: { email },
 			data: {
 				resetPasswordToken: token,
-				resetPasswordTokenExpiry: expiry,
+				resetPasswordExpires: expiry,
 			},
 		});
 		// Enviar email

@@ -9,7 +9,7 @@ import ProductCard from "@/components/product-card"
 import FeaturedCollection from "@/components/featured-collection"
 import { CategoryShowcase } from "@/components/category-showcase"
 import MetaTags from "@/components/seo/meta-tags"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Heart, Sparkles, Star } from "lucide-react"
 import type { Product } from "@/types/product"
 
 // Tipo para productos de la API
@@ -92,9 +92,9 @@ export default function HomePage() {
   return (
     <>
       <MetaTags 
-        title="Mautik - Artesanía Panameña"
-        description="Descubre la belleza de la artesanía panameña. Productos únicos hechos a mano con pasión y dedicación. Joyería, crochet, llaveros y más."
-        keywords="artesanía panameña, joyería artesanal, crochet, llaveros, pulseras, collares, anillos, aretes, handmade panamá, artesanía la chorrera"
+        title="Mautik - Artesanía Panameña Hecha con Amor"
+        description="Descubre la belleza única de la artesanía panameña. Cada pieza está hecha a mano con pasión, dedicación y el toque especial de Mautik. Joyería artesanal, crochet, llaveros y más."
+        keywords="artesanía panameña, joyería artesanal, crochet panamá, llaveros artesanales, pulseras hechas a mano, collares artesanales, anillos panameños, aretes artesanales, handmade panamá, artesanía la chorrera, mautik"
         image="/fondonubes.jpg"
         url="/"
       />
@@ -102,24 +102,33 @@ export default function HomePage() {
         {/* Hero Section */}
         <section className="relative h-screen flex items-center justify-center overflow-hidden">
           <div className="absolute inset-0 z-0">
-            <Image src="/fondonubes.jpg" alt="Joyería artesanal" fill className="object-cover" priority />
-            <div className="absolute inset-0 bg-black/60" />
+            <Image src="/fondonubes.jpg" alt="Artesanías panameñas Mautik" fill className="object-cover" priority />
+            <div className="absolute inset-0 bg-gradient-to-b from-black/70 via-black/50 to-black/70" />
           </div>
 
-          <div className="relative z-10 text-center text-white max-w-4xl mx-auto px-4">
-            <h1 className="text-5xl md:text-7xl font-bold leading-tight text-white mb-2">
-              Artesanías y Bisutería
+          <div className="relative z-10 text-center text-white max-w-5xl mx-auto px-4">
+            <div className="flex items-center justify-center gap-2 mb-4">
+              <Badge className="bg-purple-600/90 text-white border-none">
+                <Sparkles size={14} className="mr-1" />
+                Hecho a Mano en Panamá
+              </Badge>
+            </div>
+            
+            <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold leading-tight text-white mb-3">
+              Mautik
             </h1>
-            <h2 className="text-5xl md:text-7xl font-bold leading-tight text-purple-300 mb-6" style={{marginTop: 0}}>
-              elegidas para ti
+            <h2 className="text-2xl md:text-3xl lg:text-4xl font-semibold leading-tight text-purple-300 mb-6">
+              Artesanías y Joyas Hechas con Amor
             </h2>
-            <p className="text-xl md:text-2xl mb-8 text-gray-200 max-w-2xl mx-auto">
-              Cada pieza cuenta una historia: desde la creatividad artesanal hasta la selección de tendencias que te encantarán.
+            
+            <p className="text-lg md:text-xl lg:text-2xl mb-8 text-gray-200 max-w-3xl mx-auto leading-relaxed">
+              Cada pieza cuenta una historia única. Desde la creatividad artesanal hasta la selección cuidadosa de tendencias que te harán brillar.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Button asChild size="lg" className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-lg px-8 py-6 text-white border-none shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300 dark:from-purple-400 dark:via-purple-500 dark:to-purple-600 dark:hover:from-purple-500 dark:hover:via-purple-600 dark:hover:to-purple-700">
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center mb-8">
+              <Button asChild size="lg" className="bg-gradient-to-r from-purple-500 via-purple-600 to-purple-700 hover:from-purple-600 hover:via-purple-700 hover:to-purple-800 text-lg px-8 py-6 text-white border-none shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300">
                 <Link href="/shop">
-                  Explorar Artesanías <ArrowRight className="ml-2 h-5 w-5" />
+                  Explorar Colección <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
               <Button
@@ -131,29 +140,50 @@ export default function HomePage() {
                 <Link href="/about">Nuestra Historia</Link>
               </Button>
             </div>
+            
+            <div className="flex items-center justify-center gap-6 text-sm text-gray-300">
+              <div className="flex items-center gap-2">
+                <Heart size={16} className="text-red-400" />
+                <span>Hecho con Amor</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Star size={16} className="text-yellow-400" />
+                <span>Calidad Artesanal</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Sparkles size={16} className="text-purple-400" />
+                <span>Único y Especial</span>
+              </div>
+            </div>
           </div>
         </section>
 
         {/* Featured Products */}
-        <section className="py-16">
+        <section className="py-20 bg-gradient-to-b from-white to-purple-50/30 dark:from-gray-900 dark:to-gray-800">
           <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold text-purple-900 dark:text-purple-100 mb-4">Productos Destacados</h2>
-              <p className="text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
-                Descubre nuestras piezas más populares, seleccionadas especialmente para ti
+            <div className="text-center mb-16">
+              <Badge className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 mb-4">
+                <Star size={14} className="mr-1" />
+                Selección Especial
+              </Badge>
+              <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-purple-900 dark:text-purple-100 mb-6">
+                Piezas Destacadas
+              </h2>
+              <p className="text-lg text-gray-600 dark:text-gray-300 max-w-3xl mx-auto leading-relaxed">
+                Nuestras creaciones más populares, seleccionadas especialmente para ti. Cada pieza refleja la pasión y dedicación de la artesanía panameña.
               </p>
             </div>
 
             {loading ? (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 {[...Array(8)].map((_, i) => (
-                  <div key={i} className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />
+                  <div key={i} className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-xl" />
                 ))}
               </div>
             ) : (
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
                 {featuredProducts.map((product) => (
-                  <Suspense key={product.id} fallback={<div className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-lg" />}>
+                  <Suspense key={product.id} fallback={<div className="h-96 bg-gray-200 dark:bg-gray-700 animate-pulse rounded-xl" />}>
                     <ProductCard product={product} />
                   </Suspense>
                 ))}
@@ -161,9 +191,9 @@ export default function HomePage() {
             )}
 
             <div className="text-center">
-              <Button asChild variant="outline" size="lg">
+              <Button asChild variant="outline" size="lg" className="border-purple-600 text-purple-600 hover:bg-purple-600 hover:text-white dark:border-purple-400 dark:text-purple-400 dark:hover:bg-purple-400 dark:hover:text-white">
                 <Link href="/shop">
-                  Ver Todos los Productos <ArrowRight className="ml-2 h-4 w-4" />
+                  Ver Toda la Colección <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
             </div>

@@ -2,7 +2,12 @@ import { useState, useEffect } from "react"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
-import { FilterX, Box, Check } from "lucide-react"
+import { FilterX, Box, Check, Loader2 } from "lucide-react"
+
+interface Category {
+  name: string
+  count: number
+}
 
 export default function ShopFilters({
   selectedCategories = [],
@@ -17,28 +22,80 @@ export default function ShopFilters({
   onStockChange?: (checked: boolean) => void
   onReset?: () => void
 }) {
-  const [categories, setCategories] = useState<string[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Obtener categorías únicas de la API de productos
+    // Obtener categorías únicas de la API de productos con conteo
     const fetchCategories = async () => {
       try {
         setLoading(true)
+        setError(null)
+        
+        // Obtener todos los productos para contar por categoría
         const res = await fetch('/api/products?limit=1000')
-        if (res.ok) {
-          const products = await res.json()
-          const uniqueCategories = Array.from(new Set(products.map((p: any) => p.category ?? p.product?.category).filter(Boolean)))
-          setCategories(uniqueCategories as string[])
-        } else {
-          setCategories(["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"])
+        if (!res.ok) {
+          throw new Error('No se pudieron obtener los productos')
         }
-      } catch {
-        setCategories(["crochet", "llaveros", "pulseras", "collares", "anillos", "aretes", "otros"])
+        
+        const products = await res.json()
+        
+        // Crear mapa de categorías con conteo
+        const categoryMap = new Map<string, number>()
+        
+        products.forEach((product: any) => {
+          const category = product.category || product.product?.category
+          if (category && typeof category === 'string') {
+            const normalizedCategory = category.trim().toLowerCase()
+            categoryMap.set(normalizedCategory, (categoryMap.get(normalizedCategory) || 0) + 1)
+          }
+        })
+        
+        // Convertir a array y ordenar por nombre
+        const categoryArray: Category[] = Array.from(categoryMap.entries())
+          .map(([name, count]) => ({ 
+            name: name.charAt(0).toUpperCase() + name.slice(1), // Capitalizar primera letra
+            count 
+          }))
+          .sort((a, b) => a.name.localeCompare(b.name))
+        
+        setCategories(categoryArray)
+        
+        // Si no hay categorías, usar categorías por defecto
+        if (categoryArray.length === 0) {
+          const defaultCategories: Category[] = [
+            { name: "Crochet", count: 0 },
+            { name: "Llaveros", count: 0 },
+            { name: "Pulseras", count: 0 },
+            { name: "Collares", count: 0 },
+            { name: "Anillos", count: 0 },
+            { name: "Aretes", count: 0 },
+            { name: "Otros", count: 0 }
+          ]
+          setCategories(defaultCategories)
+        }
+        
+      } catch (err) {
+        console.error('Error fetching categories:', err)
+        setError('Error al cargar categorías')
+        
+        // Fallback a categorías por defecto
+        const defaultCategories: Category[] = [
+          { name: "Crochet", count: 0 },
+          { name: "Llaveros", count: 0 },
+          { name: "Pulseras", count: 0 },
+          { name: "Collares", count: 0 },
+          { name: "Anillos", count: 0 },
+          { name: "Aretes", count: 0 },
+          { name: "Otros", count: 0 }
+        ]
+        setCategories(defaultCategories)
       } finally {
         setLoading(false)
       }
     }
+    
     fetchCategories()
   }, [])
 
@@ -58,32 +115,51 @@ export default function ShopFilters({
           <FilterX size={16} className="mr-1" /> Limpiar
         </Button>
       </div>
+      
       <div className="space-y-6 md:space-y-8">
         <fieldset>
-          <legend className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-purple-800 dark:text-purple-200">Categorías</legend>
+          <legend className="text-base md:text-lg font-semibold mb-2 md:mb-3 text-purple-800 dark:text-purple-200">
+            Categorías
+            {loading && <Loader2 size={16} className="inline ml-2 animate-spin" />}
+          </legend>
+          
+          {error && (
+            <div className="text-red-500 text-sm mb-3">
+              {error}
+            </div>
+          )}
+          
           <div className="flex flex-wrap gap-2">
             {loading ? (
-              <span className="text-gray-500 text-sm">Cargando categorías...</span>
+              <div className="flex items-center gap-2 text-gray-500 text-sm">
+                <Loader2 size={16} className="animate-spin" />
+                Cargando categorías...
+              </div>
             ) : categories.length === 0 ? (
-              <span className="text-gray-500 text-sm">No hay categorías</span>
+              <span className="text-gray-500 text-sm">No hay categorías disponibles</span>
             ) : (
               categories.map((category) => {
-                const selected = selectedCategories.includes(category)
+                const selected = selectedCategories.includes(category.name)
                 return (
                   <label
-                    key={category}
+                    key={category.name}
                     className={`flex items-center gap-2 px-3 py-1 rounded-xl cursor-pointer transition-all font-sans text-sm font-medium
                       ${selected ? 'bg-gradient-to-r from-purple-700/90 to-purple-500/80 text-white shadow-md' : 'bg-purple-50 dark:bg-purple-900/40 text-purple-900 dark:text-purple-100 hover:bg-purple-100 dark:hover:bg-purple-800'}
                     `}
                     tabIndex={0}
                     style={{maxWidth: '100%'}}>
                     <Checkbox
-                      id={`category-${category}`}
+                      id={`category-${category.name}`}
                       checked={selected}
-                      onCheckedChange={(checked) => onCategoryChange(category, checked as boolean)}
+                      onCheckedChange={(checked) => onCategoryChange(category.name, checked as boolean)}
                       className="accent-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
                     />
-                    <span className="truncate max-w-[7rem] md:max-w-[10rem]">{category}</span>
+                    <span className="truncate max-w-[7rem] md:max-w-[10rem]">
+                      {category.name}
+                      {category.count > 0 && (
+                        <span className="ml-1 text-xs opacity-75">({category.count})</span>
+                      )}
+                    </span>
                     {selected && <Check size={16} className="ml-1" />}
                   </label>
                 )
@@ -91,6 +167,7 @@ export default function ShopFilters({
             )}
           </div>
         </fieldset>
+        
         <div className="flex items-center gap-2">
           <Checkbox
             id="inStockOnly"
@@ -98,7 +175,9 @@ export default function ShopFilters({
             onCheckedChange={onStockChange}
             className="accent-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-400"
           />
-          <Label htmlFor="inStockOnly" className="text-sm text-gray-700 dark:text-gray-200">Solo productos en stock</Label>
+          <Label htmlFor="inStockOnly" className="text-sm text-gray-700 dark:text-gray-200">
+            Solo productos en stock
+          </Label>
         </div>
       </div>
     </aside>

@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 		const user = await prisma.user.findFirst({
 			where: {
 				resetPasswordToken: token,
-				resetPasswordTokenExpiry: { gte: new Date() },
+				resetPasswordExpires: { gte: new Date() },
 			},
 		});
 		if (!user) {
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 			data: {
 				password: hashed,
 				resetPasswordToken: null,
-				resetPasswordTokenExpiry: null,
+				resetPasswordExpires: null,
 			},
 		});
 		return NextResponse.json({

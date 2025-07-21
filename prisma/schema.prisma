@@ -51,6 +51,8 @@ model User {
   analytics      UserAnalytics[]
   wishlistItems  WishlistItem[]
   welcomeSent    Boolean?        @default(false)
+  resetPasswordToken String?
+  resetPasswordExpires DateTime?
 }
 
 model Order {

@@ -90,11 +90,10 @@ export default function FeaturedCollection() {
           <div className="max-w-lg bg-white/90 dark:bg-white/95 backdrop-blur-sm p-8 md:p-12 rounded-lg">
             <span className="text-purple-800 dark:text-purple-900 font-medium">Colección Destacada</span>
             <h2 className="font-display text-3xl md:text-4xl font-bold text-purple-900 dark:text-purple-900 mt-2 mb-4">
-              Océano Panameño 2025
+              Tus Personajes Favoritos
             </h2>
             <p className="text-gray-700 dark:text-black mb-8">
-              Descubre nuestra nueva colección inspirada en los maravillosos océanos de Panamá. Piezas únicas que capturan
-              la belleza del mar con elegancia y creatividad artesanal.
+              Descubre una colección única inspirada en los personajes más icónicos del mundo de las series, anime, películas y caricaturas. Cada pieza está hecha a mano con amor y detalle para que lleves contigo un pedacito de tu universo favorito.
             </p>
             <div className="flex flex-col sm:flex-row gap-4">
               <Link href="/shop?collection=oceano-panameno">
@@ -138,11 +137,10 @@ export default function FeaturedCollection() {
         <div className="max-w-lg bg-white/90 dark:bg-white/95 backdrop-blur-sm p-8 md:p-12 rounded-lg">
           <span className="text-purple-800 dark:text-purple-900 font-medium">Colección Destacada</span>
           <h2 className="font-display text-3xl md:text-4xl font-bold text-purple-900 dark:text-purple-900 mt-2 mb-4">
-            Océano Panameño 2025
+            Personajes de tus Series Favoritas
           </h2>
           <p className="text-gray-700 dark:text-black mb-8">
-            Descubre nuestra nueva colección inspirada en los maravillosos océanos de Panamá. Piezas únicas que capturan
-            la belleza del mar con elegancia y creatividad artesanal.
+            Descubre una colección única inspirada en los personajes más icónicos del mundo de las series, anime, películas y caricaturas. Cada pieza está hecha a mano con amor y detalle para que lleves contigo un pedacito de tu universo favorito.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
             <Link href="escu/shop?collection=oceano-panameno">

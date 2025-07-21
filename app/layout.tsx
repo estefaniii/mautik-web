@@ -86,7 +86,7 @@ export default function RootLayout({
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="theme-color" content="#7c3aed" />
-        <link rel="icon" href="/favicon.ico" />
+        <link rel="icon" href="/logo.PNG" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="manifest" href="/manifest.json" />
         
@@ -105,9 +105,9 @@ export default function RootLayout({
               "@context": "https://schema.org",
               "@type": "Organization",
               "name": "Mautik",
-              "url": "https://mautik.com",
-              "logo": "https://mautik.com/logo.png",
-              "description": "Artesanías únicas hechas a mano",
+              "url": "https://mautik-web.vercel.app",
+              "logo": "https://mautik-web.vercel.app/logo.png",
+              "description": "Artesanías, crochet y joyas únicas hechas a mano",
               "address": {
                 "@type": "PostalAddress",
                 "addressCountry": "PA"
@@ -117,8 +117,8 @@ export default function RootLayout({
                 "contactType": "customer service"
               },
               "sameAs": [
-                "https://facebook.com/mautik",
-                "https://instagram.com/mautik"
+                "https://www.facebook.com/Mautikofficial",
+                "https://www.instagram.com/mautik_official"
               ]
             })
           }}

@@ -279,7 +279,7 @@ export default function Navbar() {
             <Link href="/favorites" className="relative group">
               <Heart className="h-6 w-6 text-purple-800 dark:text-purple-300 group-hover:text-purple-700 dark:group-hover:text-purple-200 transition-colors" />
               {favoritesCount > 0 && (
-                <Badge className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full">{favoritesCount}</Badge>
+                <Badge className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs px-1.5 py-0.5 rounded-full shadow-none">{favoritesCount}</Badge>
               )}
             </Link>
             {/* Carrito */}

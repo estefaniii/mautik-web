@@ -28,6 +28,12 @@ export const sendOrderConfirmationEmail = async (orderData: {
 			0,
 		);
 		const shipping = 10;
+
+		if (!resend) {
+			console.warn('Resend no configurado, saltando envío de email');
+			return false;
+		}
+
 		const result = await resend.emails.send({
 			from: 'Tu Tienda <noreply@tu-dominio.com>', // Cambiar por tu dominio verificado
 			to: [customerEmail],
