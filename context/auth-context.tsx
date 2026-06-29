@@ -89,8 +89,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithGoogle = async () => {
     try {
+      // Google (OAuth) DEBE redirigir a la pantalla de Google; con redirect:false no funciona.
       const result = await signIn('google', {
-        redirect: false,
+        callbackUrl: typeof window !== 'undefined' ? window.location.origin + '/' : '/',
       })
 
       if (result?.error) {
