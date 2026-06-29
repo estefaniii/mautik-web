@@ -162,7 +162,7 @@ export default function AboutPage() {
 
           <div className="max-w-md mx-auto text-center">
             <div className="relative h-64 w-64 rounded-full overflow-hidden mx-auto mb-4">
-              <Image src="/placeholder-user.jpg" alt="Estéfani Torres - Fundadora" fill className="object-cover" />
+              <Image src="/estefani.webp" alt="Estéfani Torres - Fundadora" fill className="object-cover" />
             </div>
             <h3 className="text-xl font-semibold text-purple-900 dark:text-purple-200 mb-1">Estéfani Torres</h3>
             <p className="text-purple-600 dark:text-purple-300 mb-3">Fundadora y Diseñadora Principal</p>
