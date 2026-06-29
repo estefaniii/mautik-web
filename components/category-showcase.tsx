@@ -6,13 +6,13 @@ import { useRef, useState, useEffect } from "react"
 const categories = [
   {
     name: "Crochet",
-    image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/crochet-category.jpg",
+    image: "https://images.unsplash.com/photo-1629019317873-3f603b269723?w=600&q=80&auto=format&fit=crop",
     link: "/shop?category=crochet",
     description: "Artesanías únicas hechas a mano con crochet",
   },
   {
     name: "Llaveros",
-    image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/keychain-1avERJBjLm9Nt2ETHxdpnW3hLTiVL5.jpg",
+    image: "https://images.unsplash.com/photo-1687363714985-990685339050?w=600&q=80&auto=format&fit=crop",
     link: "/shop?category=llaveros",
     description: "Llaveros únicos para tu día a día",
   },
@@ -42,7 +42,7 @@ const categories = [
   },
   {
     name: "Otros",
-    image: "https://hebbkx1anhila5yf.public.blob.vercel-storage.com/plush-toys-Zzh5Kp8E4vRXZXdXc07DNcYxbVzWc0.jpg",
+    image: "https://images.unsplash.com/photo-1682953745453-c537d3248028?w=600&q=80&auto=format&fit=crop",
     link: "/shop?category=otros",
     description: "Productos únicos y especiales",
   },
