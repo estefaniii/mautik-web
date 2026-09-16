@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
+import { comoLista } from "@/lib/lista"
 import { useRouter } from "next/navigation"
 import { useCart } from "@/context/cart-context"
 import { useAuth } from "@/context/auth-context"
@@ -12,13 +13,11 @@ import Link from "next/link"
 import { saveOrder } from "@/lib/utils"
 import dynamic from "next/dynamic"
 import AuthGuard from "@/components/auth-guard"
+import { enlaceWhatsapp, yappyBonito } from "@/lib/contacto"
 import AddressForm, { Address } from "@/components/address-form"
 import { CreditCard, Home, MapPin, Plus, Edit, Star, Pencil, Trash2 } from "lucide-react"
 import { DialogFooter } from "@/components/ui/dialog";
 import PayPalButton from "@/components/paypal-button";
-import { Elements } from '@stripe/react-stripe-js';
-import { loadStripe } from '@stripe/stripe-js';
-import PaymentForm from '@/components/payment-form';
 import OrderSummarySticky from "@/components/order-summary-sticky"
 import { getAvailableShippingMethods, calculateShipping, ShippingMethod } from '@/lib/shipping';
 
@@ -29,12 +28,18 @@ function getCardIcon(brand: string) {
     case "visa": return <img src="/payment-visa.png" alt="Visa" className="h-6 inline" />;
     case "mastercard": return <img src="/payment-mastercard.png" alt="Mastercard" className="h-6 inline" />;
     case "paypal": return <img src="/payment-paypal.png" alt="Paypal" className="h-6 inline" />;
-    default: return <CreditCard className="h-5 w-5 text-indigo-600 inline" />;
+    default: return <CreditCard className="h-5 w-5 text-purple-600 inline" />;
   }
 }
 
 export default function CheckoutPage() {
-  const { cart, updateQuantity, clearCart } = useCart()
+  /*
+    El checkout trabaja sobre lo SELECCIONADO en el carrito, no sobre el
+    carrito completo. `articulos` es lo que se cobra, se valida y se manda al
+    pedido; el resto se queda esperando en el carrito.
+  */
+  const { cart, selectedItems, updateQuantity, clearCart, codigoCupon, guardarCupon } = useCart()
+  const articulos = selectedItems.length > 0 ? selectedItems : cart
   const { user } = useAuth()
   const { toast } = useToast()
   const router = useRouter()
@@ -54,6 +59,13 @@ export default function CheckoutPage() {
   })
   const [loading, setLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  // PayPal necesita un pedido ya creado en nuestra base para poder calcular el
+  // monto del lado del servidor. Se crea pendiente cuando la clienta toca
+  // "Continuar con PayPal", y recién se marca pagado al capturar.
+  const [pedidoPaypalId, setPedidoPaypalId] = useState<string | null>(null)
+  const [totalServidor, setTotalServidor] = useState<number | null>(null)
+  const [preparandoPaypal, setPreparandoPaypal] = useState(false)
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [selectedPaymentId, setSelectedPaymentId] = useState<string | null>(null);
   const [showNewCard, setShowNewCard] = useState(false);
@@ -85,8 +97,39 @@ export default function CheckoutPage() {
     isDefault: false,
   });
   const [cardBrand, setCardBrand] = useState("");
+
+  /*
+    ⚠️ ACÁ ESTABA EL ERROR QUE TUMBABA LA PÁGINA DE PAGO ENTERA.
+
+    Estos cuatro estados estaban declarados MÁS ABAJO, pasados los dos
+    `return` tempranos del componente (el de "tu carrito está vacío" y el de
+    "gracias por tu compra"). Resultado:
+
+      · Primer render, con el carrito todavía cargando: se corta en el return
+        del carrito vacío y solo se ejecutan 53 hooks.
+      · Llega el carrito, vuelve a renderizar, pasa de largo ese return y
+        aparece el hook 54.
+
+    React exige que la cantidad de hooks sea SIEMPRE la misma, así que tiraba
+    "Rendered more hooks than during the previous render" y la clienta veía
+    "¡Ha ocurrido un error inesperado!" en vez del checkout. O sea: no se
+    podía comprar. Reproducido en local y confirmado que el hook que sobraba
+    era exactamente el número 54.
+
+    La regla: TODOS los hooks van antes del primer `return`.
+  */
+  // Yappy. Todos los hooks van acá arriba, antes del primer `return`.
+  const [yappyListo, setYappyListo] = useState(false);
+  // Pedido creado esperando que la clienta pague por Yappy desde su app.
+  const [pedidoYappy, setPedidoYappy] = useState<{ id: string; referencia: string; total: number } | null>(null);
+  const [telefonoYappy, setTelefonoYappy] = useState("");
+  const [preparandoYappy, setPreparandoYappy] = useState(false);
+
+  const [addressErrors, setAddressErrors] = useState<any>({});
+  const [addressTouched, setAddressTouched] = useState<any>({});
+  const [paymentErrors, setPaymentErrors] = useState<any>({});
+  const [paymentTouched, setPaymentTouched] = useState<any>({});
   const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
-  const [showStripeSuccess, setShowStripeSuccess] = useState<null | { paymentId: string, email?: string }>(null);
   const [stockMessages, setStockMessages] = useState<{ [id: string]: string }>({})
   const prevStocks = useRef<{ [id: string]: number }>({})
   // 1. Add state for editing address
@@ -329,7 +372,7 @@ export default function CheckoutPage() {
         });
         if (!res.ok) throw new Error("Error al cargar direcciones");
         const data = await res.json();
-        setAddresses(data);
+        setAddresses(comoLista(data));
         // Seleccionar la predeterminada
         const def = data.find((a: any) => a.isDefault) || data[0];
         if (def) setSelectedAddressId(def.id);
@@ -351,7 +394,7 @@ export default function CheckoutPage() {
         const res = await fetch("/api/payment-methods");
         if (!res.ok) return;
         const data = await res.json();
-        setPaymentMethods(data);
+        setPaymentMethods(comoLista(data));
         // Seleccionar default automáticamente
         const def = data.find((m: any) => m.isDefault) || data[0];
         if (def) {
@@ -383,21 +426,82 @@ export default function CheckoutPage() {
     }
   }, [selectedAddressId, addresses]);
 
-  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const subtotal = articulos.reduce((sum, item) => sum + item.price * item.quantity, 0)
+
+  /*
+    El descuento del cupón se vuelve a preguntar ACÁ, sobre estos artículos.
+
+    No se arrastra el monto que mostró el carrito: entre una pantalla y otra la
+    clienta puede haber cambiado cantidades, y un cupón con compra mínima puede
+    haber dejado de valer. De todos modos el que manda es el servidor, que lo
+    recalcula una vez más al crear el pedido.
+  */
+  const [descuento, setDescuento] = useState(0)
+
+  /*
+    ¿Está Yappy activo? Lo pregunta al servidor, que responde sí o no sin
+    devolver ninguna credencial. Si no lo está, el botón queda apagado y
+    avisando, en vez de llevar a la clienta a un cobro que va a fallar.
+  */
+  useEffect(() => {
+    fetch("/api/yappy/config")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setYappyListo(Boolean(d?.configurado)))
+      .catch(() => setYappyListo(false))
+  }, [])
+  useEffect(() => {
+    if (!codigoCupon || articulos.length === 0) {
+      setDescuento(0)
+      return
+    }
+    let cancelado = false
+    fetch("/api/coupons/validate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        code: codigoCupon,
+        subtotal,
+        items: articulos.map((i: any) => ({
+          productId: i.id,
+          category: i.category,
+          subtotal: i.price * i.quantity,
+        })),
+      }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!cancelado) setDescuento(d?.discount || 0)
+      })
+      .catch(() => {
+        if (!cancelado) setDescuento(0)
+      })
+    return () => {
+      cancelado = true
+    }
+  }, [codigoCupon, subtotal, articulos.length])
   // Calcular costo de envío dinámicamente
   const shippingCost = shippingMethod && selectedAddressId
-    ? calculateShipping(addresses.find((a: any) => a.id === selectedAddressId), cart, shippingMethod)
+    ? calculateShipping(addresses.find((a: any) => a.id === selectedAddressId), articulos, shippingMethod)
     : 0;
-  const total = subtotal + shippingCost;
+  // El descuento se resta antes del envío, igual que en el servidor.
+  const total = Math.max(0, subtotal - descuento) + shippingCost;
 
   const validate = () => {
-    if (!form.name.trim() || !form.email.trim() || !form.phone.trim() || 
-        !form.address.street.trim() || !form.address.city.trim() || 
-        !form.address.state.trim() || !form.address.zipCode.trim() || 
-        !form.address.country.trim()) {
+    if (!form.name.trim() || !form.email.trim() || !form.phone.trim()) {
       toast({
-        title: "Campos requeridos",
-        description: "Por favor completa todos los campos.",
+        title: "Faltan tus datos",
+        description: "Necesitamos tu nombre, correo y teléfono.",
+        variant: "destructive"
+      })
+      return false
+    }
+    // La dirección es la ELEGIDA arriba, no un formulario aparte. Antes se
+    // validaba un segundo formulario que no alimentaba el pedido: se podía
+    // llenar entero y el pago seguía bloqueado sin decir por qué.
+    if (!selectedAddressId) {
+      toast({
+        title: "Falta la dirección",
+        description: "Elige o guarda una dirección de envío arriba.",
         variant: "destructive"
       })
       return false
@@ -568,7 +672,18 @@ export default function CheckoutPage() {
 
   // Polling para actualizar stock de todos los productos cada 20s
   useEffect(() => {
+    /*
+      Sondeo de stock cada 2 minutos y SOLO con la pestaña a la vista.
+
+      Antes era cada 20 segundos y seguía corriendo con la pestaña de fondo:
+      una clienta que dejaba el carrito abierto toda la tarde generaba 180
+      consultas por hora, por cada producto del carrito. En el plan gratis de
+      Neon eso se paga en horas de base despierta, que es justo lo que agotó
+      la cuota y tumbó la tienda. Dos minutos alcanza de sobra para avisar que
+      algo se agotó.
+    */
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
       const updates: { [id: string]: number } = {}
       for (const item of cart) {
         try {
@@ -593,7 +708,7 @@ export default function CheckoutPage() {
           }
         }
       }
-    }, 20000)
+    }, 120000)
     return () => clearInterval(interval)
   }, [cart])
 
@@ -649,7 +764,7 @@ export default function CheckoutPage() {
     try {
       // Preparar los datos del pedido
       const orderData = {
-        items: cart.map(item => ({
+        items: articulos.map(item => ({
           productId: item.id,
           quantity: item.quantity,
         })),
@@ -659,6 +774,8 @@ export default function CheckoutPage() {
         phone: form.phone,
         payment: selectedPaymentId || form.payment,
         totalAmount: total,
+        // El código, no el monto: el servidor recalcula el descuento.
+        couponCode: codigoCupon || null,
       }
       // Hacer POST al backend
       const res = await fetch("/api/orders", {
@@ -681,6 +798,7 @@ export default function CheckoutPage() {
       setLoading(false)
       setSubmitted(true)
     clearCart()
+    guardarCupon(null)
       toast({
         title: "¡Pedido realizado!",
         description: "Tu pedido ha sido registrado exitosamente.",
@@ -695,6 +813,120 @@ export default function CheckoutPage() {
         description: "No se pudo conectar con el servidor. Intenta de nuevo.",
         variant: "destructive"
       })
+    }
+  }
+
+  /**
+   * Crea el pedido en estado pendiente y deja listo el botón de PayPal.
+   * El total que se cobra lo calcula el servidor: acá no se manda ningún
+   * precio, solo qué producto y cuántos.
+   */
+  /*
+    Pagar con Yappy.
+
+    Dos pasos, igual que con PayPal:
+      1. Se crea el pedido en nuestra base (pendiente, sin cobrar y sin tocar
+         el stock), con el total recalculado en el servidor.
+      2. Se le pide a Yappy la orden de cobro y se manda a la clienta a la
+         pantalla de Yappy.
+
+    Quien decide que el pedido está pagado NO es este redirect, sino la IPN
+    que Yappy le manda al servidor (/api/yappy/ipn) y que va firmada. Si la
+    clienta cierra el navegador a mitad del pago, el pedido igual se marca
+    bien cuando llega esa notificación.
+  */
+  const pagarConYappy = async () => {
+    if (!user) {
+      toast({ title: "Inicia sesión", description: "Necesitas una cuenta para completar la compra.", variant: "destructive" })
+      return
+    }
+    const shippingAddress = addresses.find((a: any) => a.id === selectedAddressId)
+    if (!shippingAddress) {
+      toast({ title: "Elige una dirección", description: "Selecciona a dónde te lo enviamos.", variant: "destructive" })
+      return
+    }
+    if (!articulos.length) {
+      toast({ title: "El carrito está vacío", variant: "destructive" })
+      return
+    }
+
+    setPreparandoYappy(true)
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          items: articulos.map((item) => ({ productId: item.id, quantity: item.quantity })),
+          shippingAddress,
+          metodoEnvio: shippingMethod,
+          paymentMethod: "yappy",
+          couponCode: codigoCupon || null,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        toast({ title: "No pude registrar el pedido", description: json?.error || "Inténtalo de nuevo.", variant: "destructive" })
+        return
+      }
+
+      /*
+        El pedido queda REGISTRADO pero sin pagar y sin tocar el stock. Recién
+        cuando Estéfani vea el dinero en su Yappy y lo confirme desde el panel,
+        se marca pagado, se descuenta el inventario y sale el correo.
+      */
+      setPedidoYappy({
+        id: json.order.id,
+        referencia: String(json.order.id).slice(0, 8).toUpperCase(),
+        total: json.totales?.total ?? total,
+      })
+      clearCart()
+      guardarCupon(null)
+    } catch {
+      toast({ title: "Error de conexión", variant: "destructive" })
+    } finally {
+      setPreparandoYappy(false)
+    }
+  }
+
+  const prepararPedidoPaypal = async () => {
+    if (!user) {
+      toast({ title: "Inicia sesión", description: "Necesitas una cuenta para completar la compra.", variant: "destructive" })
+      return
+    }
+    const shippingAddress = addresses.find((a: any) => a.id === selectedAddressId)
+    if (!shippingAddress) {
+      toast({ title: "Elige una dirección", description: "Selecciona a dónde te lo enviamos.", variant: "destructive" })
+      return
+    }
+    if (!articulos.length) {
+      toast({ title: "El carrito está vacío", variant: "destructive" })
+      return
+    }
+    setPreparandoPaypal(true)
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          items: articulos.map((item) => ({ productId: item.id, quantity: item.quantity })),
+          shippingAddress,
+          paymentMethod: "paypal",
+          couponCode: codigoCupon || null,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        toast({ title: "No pude preparar el pedido", description: json?.error || "Inténtalo de nuevo.", variant: "destructive" })
+        return
+      }
+      setPedidoPaypalId(json.order.id)
+      setTotalServidor(json.totales?.total ?? null)
+    } catch (err: any) {
+      toast({ title: "Error de red", description: err?.message || "No se pudo conectar.", variant: "destructive" })
+    } finally {
+      setPreparandoPaypal(false)
     }
   }
 
@@ -733,7 +965,7 @@ export default function CheckoutPage() {
       setEditingPayment(null);
       // Refrescar métodos
       const data = await fetch("/api/payment-methods").then(r => r.json());
-      setPaymentMethods(data);
+      setPaymentMethods(comoLista(data));
     } catch (err: any) {
       const errorToUse = err instanceof Error ? err : new Error(typeof err === 'string' ? err : JSON.stringify(err));
       toast({ title: "Error", description: errorToUse.message || "Error desconocido", variant: "destructive" });
@@ -751,7 +983,7 @@ export default function CheckoutPage() {
       toast({ title: "Tarjeta eliminada", description: "La tarjeta fue eliminada.", variant: "default" });
       // Refrescar métodos
       const data = await fetch("/api/payment-methods").then(r => r.json());
-      setPaymentMethods(data);
+      setPaymentMethods(comoLista(data));
       // Si el método eliminado era el seleccionado, seleccionar otro
       if (selectedPaymentId === id && data.length > 0) {
         setSelectedPaymentId(data[0].id);
@@ -846,13 +1078,13 @@ export default function CheckoutPage() {
   // Al inicio del componente CheckoutPage:
   if (cart.length === 0) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="bg-white rounded-lg shadow-lg p-8 text-center">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background">
+        <div className="rounded-3xl bg-card p-8 text-center shadow-[0_2px_16px_rgba(24,10,48,0.10)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
           <h2 className="text-2xl font-bold mb-4 text-purple-800">Tu carrito está vacío</h2>
-          <p className="text-gray-600 mb-6">Agrega productos a tu carrito para continuar con el checkout.</p>
-            <Link href="/shop">
-            <Button className="bg-indigo-600 hover:bg-indigo-700">Volver a la tienda</Button>
-            </Link>
+          <p className="text-gray-600 dark:text-purple-100/70 mb-6">Agrega productos a tu carrito para continuar con el checkout.</p>
+            <Button className="bg-purple-600 hover:bg-purple-700" asChild>
+            <Link href="/shop">Volver a la tienda</Link>
+            </Button>
           </div>
         </div>
     );
@@ -864,43 +1096,49 @@ export default function CheckoutPage() {
     const paymentMethod = paymentMethods.find((m: any) => m.id === selectedPaymentId);
     return (
       <AuthGuard>
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-purple-50 to-white py-12">
-          <div className="bg-white rounded-2xl shadow-xl p-8 max-w-2xl w-full text-center border border-indigo-100">
+        <div className="min-h-screen flex flex-col items-center justify-center bg-background py-12">
+          <div className="w-full max-w-2xl rounded-3xl bg-card p-8 text-center shadow-[0_8px_32px_rgba(24,10,48,0.16)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
             <h2 className="text-3xl font-extrabold text-purple-900 mb-2">¡Gracias por tu compra!</h2>
-            <p className="text-gray-700 mb-6">Tu pedido ha sido registrado exitosamente.<br />Pronto recibirás un correo con los detalles.</p>
+            <p className="text-gray-700 dark:text-purple-100/80 mb-6">Tu pedido ha sido registrado exitosamente.<br />Pronto recibirás un correo con los detalles.</p>
             <div className="mb-6 text-left">
-              <h3 className="text-lg font-bold text-indigo-800 mb-2">Resumen del pedido</h3>
-              <ul className="divide-y divide-indigo-100 mb-2">
+              <h3 className="text-lg font-bold text-purple-800 mb-2">Resumen del pedido</h3>
+              <ul className="divide-y divide-purple-100 mb-2">
                 {cart.map(item => (
                   <li key={item.id} className="py-2 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{item.name} <span className="text-xs text-gray-500">x{item.quantity}</span></span>
-                    <span className="text-gray-700">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-medium text-gray-900 dark:text-purple-50">{item.name} <span className="text-xs text-gray-500 dark:text-purple-100/50">x{item.quantity}</span></span>
+                    <span className="text-gray-700 dark:text-purple-100/80">${(item.price * item.quantity).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="text-gray-900 font-medium">${cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-purple-100/70">Subtotal</span>
+                <span className="text-gray-900 dark:text-purple-50 font-medium">${cart.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</span>
               </div>
+              {descuento > 0 && (
+                <div className="flex justify-between text-emerald-700 dark:text-emerald-400">
+                  <span>Cupón {codigoCupon}</span>
+                  <span className="font-medium">−${descuento.toFixed(2)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Envío</span>
-                <span className="text-gray-900 font-medium">${shippingCost.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-purple-100/70">Envío</span>
+                <span className="text-gray-900 dark:text-purple-50 font-medium">${shippingCost.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-base font-bold border-t pt-2 mt-2">
                 <span>Total</span>
                 <span>${total.toFixed(2)}</span>
               </div>
               {shippingAddress && (
-                <div className="mt-4 p-3 rounded bg-indigo-50 border border-indigo-100">
-                  <div className="font-semibold text-indigo-800 mb-1">Enviado a:</div>
-                  <div className="text-sm text-gray-700">{shippingAddress.street}, {shippingAddress.city}, {shippingAddress.state}, {shippingAddress.zipCode}, {shippingAddress.country}</div>
-                  <div className="text-xs text-gray-500">Tel: {shippingAddress.phone}</div>
+                <div className="mt-4 p-3 rounded bg-purple-50 border border-purple-100">
+                  <div className="font-semibold text-purple-800 mb-1">Enviado a:</div>
+                  <div className="text-sm text-gray-700 dark:text-purple-100/80">{shippingAddress.street}, {shippingAddress.city}, {shippingAddress.state}, {shippingAddress.zipCode}, {shippingAddress.country}</div>
+                  <div className="text-xs text-gray-500 dark:text-purple-100/50">Tel: {shippingAddress.phone}</div>
                 </div>
               )}
               {paymentMethod && (
-                <div className="mt-2 p-3 rounded bg-indigo-50 border border-indigo-100 flex items-center gap-2">
-                  <span className="font-semibold text-indigo-800">Pago:</span>
-                  <span className="text-gray-900">{paymentMethod.brand} •••• {paymentMethod.last4}</span>
+                <div className="mt-2 p-3 rounded bg-purple-50 border border-purple-100 flex items-center gap-2">
+                  <span className="font-semibold text-purple-800">Pago:</span>
+                  <span className="text-gray-900 dark:text-purple-50">{paymentMethod.brand} •••• {paymentMethod.last4}</span>
                 </div>
               )}
             </div>
@@ -908,7 +1146,7 @@ export default function CheckoutPage() {
               <Button asChild className="bg-purple-800 hover:bg-purple-900 w-full sm:w-auto">
                 <Link href="/orders">Ver mis pedidos</Link>
               </Button>
-              <Button asChild variant="outline" className="border-indigo-400 text-indigo-700 w-full sm:w-auto">
+              <Button asChild variant="outline" className="border-purple-400 text-purple-700 w-full sm:w-auto">
                 <Link href="/shop">Seguir comprando</Link>
               </Button>
             </div>
@@ -922,12 +1160,8 @@ export default function CheckoutPage() {
   const allowedBrands = ["visa", "mastercard", "paypal"];
   const filteredPaymentMethods = paymentMethods.filter(m => allowedBrands.includes((m.brand || m.type || "").toLowerCase()));
 
-  const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
-  // 1. Estado para campos tocados y errores de dirección
-  const [addressErrors, setAddressErrors] = useState<any>({});
-  const [addressTouched, setAddressTouched] = useState<any>({});
-
+  // (los estados de errores de dirección se declaran arriba, con el resto)
   // 2. Función de validación de dirección
   const validateAddressField = (field: string, value: string) => {
     if (!value.trim()) return 'Este campo es obligatorio';
@@ -936,25 +1170,11 @@ export default function CheckoutPage() {
     return '';
   };
 
-  // 3. Handlers para blur y change de dirección
-  const handleAddressInputBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setAddressTouched((prev: any) => ({ ...prev, [name]: true }));
-    const error = validateAddressField(name, value);
-    setAddressErrors((prev: any) => ({ ...prev, [name]: error }));
-  };
-  const handleAddressInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    handleAddressChange({ ...form.address, [e.target.name]: e.target.value });
-    if (addressTouched[e.target.name]) {
-      const error = validateAddressField(e.target.name, e.target.value);
-      setAddressErrors((prev: any) => ({ ...prev, [e.target.name]: error }));
-    }
-  };
+  // Los handlers del segundo formulario de dirección se fueron con él. La
+  // dirección se elige arriba, en el selector, que es el único que alimenta
+  // el pedido.
 
-  // 1. Estado para campos tocados y errores de método de pago
-  const [paymentErrors, setPaymentErrors] = useState<any>({});
-  const [paymentTouched, setPaymentTouched] = useState<any>({});
-
+  // (los estados de errores de pago se declaran arriba, con el resto)
   // 2. Función de validación de método de pago
   const validatePaymentField = (field: string, value: string) => {
     if (!value.trim()) return 'Este campo es obligatorio';
@@ -982,20 +1202,20 @@ export default function CheckoutPage() {
 
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white py-12">
+      <div className="min-h-screen bg-background py-12">
         <div className="container mx-auto px-4 max-w-4xl">
           <h1 className="text-3xl font-bold text-purple-900 mb-8 text-center">Checkout</h1>
           {/* Selector de direcciones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold mb-2 flex items-center gap-2"><MapPin className="h-5 w-5" /> Dirección de Envío</h2>
             {addressLoading ? (
-              <div className="text-gray-500">Cargando direcciones...</div>
+              <div className="text-gray-500 dark:text-purple-100/50">Cargando direcciones...</div>
             ) : addressError ? (
               <div className="text-red-500">{addressError}</div>
             ) : addresses.length === 0 ? (
               <>
-                <div className="mb-2 text-gray-500">No tienes direcciones guardadas.</div>
-                <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+                <div className="mb-2 text-gray-500 dark:text-purple-100/50">No tienes direcciones guardadas.</div>
+                <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/50 p-4 dark:border-white/10 dark:bg-white/5">
                   <AddressForm
                     initialAddress={{
                       street: "",
@@ -1021,7 +1241,7 @@ export default function CheckoutPage() {
             ) : (
               <div className="space-y-2 mb-2">
                 {addresses.map((a: any) => (
-                  <div key={a.id} className={`flex flex-col gap-2 p-3 rounded border transition-all ${selectedAddressId === a.id ? 'border-indigo-600 bg-indigo-50' : 'border-gray-200 bg-white hover:bg-gray-50'}`}>
+                  <div key={a.id} className={`flex flex-col gap-2 rounded-2xl border p-3 transition-all ${selectedAddressId === a.id ? 'border-purple-600 bg-purple-50 dark:bg-purple-400/15' : 'border-gray-200 bg-card hover:bg-purple-50/50 dark:border-white/10 dark:hover:bg-white/5'}`}>
                     {editingAddressId === a.id ? (
                       <>
                         <div className="flex flex-col gap-2">
@@ -1036,7 +1256,7 @@ export default function CheckoutPage() {
                         </div>
                         <div className="flex gap-2 mt-2">
                           <Button size="sm" variant="outline" onClick={cancelEditAddress} disabled={addressLoading}>Cancelar</Button>
-                          <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700 text-white" onClick={saveEditAddress} disabled={addressLoading}>
+                          <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white" onClick={saveEditAddress} disabled={addressLoading}>
                             {addressLoading && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>}
                             Guardar
                           </Button>
@@ -1047,13 +1267,13 @@ export default function CheckoutPage() {
                         <input type="radio" name="addressRadio" value={a.id} checked={selectedAddressId === a.id} onChange={() => {
                           setSelectedAddressId(a.id);
                           setForm(f => ({ ...f, address: a }));
-                        }} className="accent-indigo-600" />
+                        }} className="accent-purple-600" />
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900 flex items-center">{a.alias || "Dirección"} <span className="text-xs text-gray-500 ml-2">({a.recipientName || "Destinatario"})</span> {a.isDefault && <span className="ml-2 text-xs px-2 py-1 rounded bg-indigo-600 text-white flex items-center gap-1"><Star className="h-3 w-3" /> Principal</span>}</div>
-                          <div className="text-xs text-gray-500">{a.street}, {a.city}, {a.state}, {a.zipCode}, {a.country}</div>
-                          <div className="text-xs text-gray-500">Tel: {a.phone}</div>
+                          <div className="font-semibold text-gray-900 dark:text-purple-50 flex items-center">{a.alias || "Dirección"} <span className="text-xs text-gray-500 dark:text-purple-100/50 ml-2">({a.recipientName || "Destinatario"})</span> {a.isDefault && <span className="ml-2 text-xs px-2 py-1 rounded bg-purple-600 text-white flex items-center gap-1"><Star className="h-3 w-3" /> Principal</span>}</div>
+                          <div className="text-xs text-gray-500 dark:text-purple-100/50">{a.street}, {a.city}, {a.state}, {a.zipCode}, {a.country}</div>
+                          <div className="text-xs text-gray-500 dark:text-purple-100/50">Tel: {a.phone}</div>
                         </div>
-                        <Button size="icon" variant="ghost" onClick={e => { e.preventDefault(); startEditAddress(a); }} title="Editar" disabled={addressLoading}><Edit className="h-4 w-4 text-indigo-600" /></Button>
+                        <Button size="icon" variant="ghost" onClick={e => { e.preventDefault(); startEditAddress(a); }} title="Editar" disabled={addressLoading}><Edit className="h-4 w-4 text-purple-600" /></Button>
                         <Button size="icon" variant="ghost" onClick={e => { e.preventDefault(); handleDeleteAddress(a.id); }} title="Eliminar" disabled={addressLoading}><Trash2 className="h-4 w-4 text-red-500" /></Button>
                       </label>
                     )}
@@ -1064,7 +1284,7 @@ export default function CheckoutPage() {
             <Button variant="outline" size="sm" className="mt-2 flex items-center gap-2" onClick={() => setShowNewAddress(v => !v)}><Plus className="h-4 w-4" /> {showNewAddress ? "Cancelar" : "Agregar nueva dirección"}</Button>
             {/* Al abrir AddressForm para agregar nueva dirección: */}
             {showNewAddress && (
-              <div className="mt-4 border rounded-lg p-4 bg-gray-50">
+              <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/50 p-4 dark:border-white/10 dark:bg-white/5">
                 <AddressForm
                   initialAddress={{
                     street: "",
@@ -1108,7 +1328,7 @@ export default function CheckoutPage() {
                 )}
               </select>
               {shippingMethod && (
-                <div className="mt-2 text-sm text-gray-700">
+                <div className="mt-2 text-sm text-gray-700 dark:text-purple-100/80">
                   <strong>Precio de envío:</strong> ${shippingCost.toFixed(2)}
                 </div>
               )}
@@ -1116,18 +1336,18 @@ export default function CheckoutPage() {
           )}
           {/* Resumen visual de la dirección seleccionada */}
           {selectedAddressId && (
-            <div className="mb-8 border rounded-lg p-4 bg-indigo-50 border-indigo-200">
-              <h3 className="font-semibold text-indigo-800 mb-1 flex items-center gap-2"><Home className="h-4 w-4" /> Dirección seleccionada</h3>
+            <div className="mb-8 rounded-2xl border border-purple-200 bg-purple-50 p-4 dark:border-purple-300/20 dark:bg-purple-400/10">
+              <h3 className="font-semibold text-purple-800 mb-1 flex items-center gap-2"><Home className="h-4 w-4" /> Dirección seleccionada</h3>
               {(() => {
                 const a = addresses.find((a: any) => a.id === selectedAddressId);
                 if (!a) return null;
                 return (
                   <div>
-                    <div className="font-semibold text-gray-900 flex items-center">{a.alias || "Dirección"} <span className="text-xs text-gray-500 ml-2">({a.recipientName || "Destinatario"})</span> {a.isDefault && <span className="ml-2 text-xs px-2 py-1 rounded bg-indigo-600 text-white flex items-center gap-1"><Star className="h-3 w-3" /> Principal</span>}
+                    <div className="font-semibold text-gray-900 dark:text-purple-50 flex items-center">{a.alias || "Dirección"} <span className="text-xs text-gray-500 dark:text-purple-100/50 ml-2">({a.recipientName || "Destinatario"})</span> {a.isDefault && <span className="ml-2 text-xs px-2 py-1 rounded bg-purple-600 text-white flex items-center gap-1"><Star className="h-3 w-3" /> Principal</span>}
                       <Button size="sm" variant="outline" className="ml-2" onClick={() => setEditingAddress(a)}>Editar</Button>
                     </div>
-                    <div className="text-xs text-gray-700">{a.street}, {a.city}, {a.state}, {a.zipCode}, {a.country}</div>
-                    <div className="text-xs text-gray-700">Tel: {a.phone}</div>
+                    <div className="text-xs text-gray-700 dark:text-purple-100/80">{a.street}, {a.city}, {a.state}, {a.zipCode}, {a.country}</div>
+                    <div className="text-xs text-gray-700 dark:text-purple-100/80">Tel: {a.phone}</div>
                   </div>
                 );
               })()}
@@ -1136,7 +1356,7 @@ export default function CheckoutPage() {
           {/* Show AddressForm modal for editing address */}
           {editingAddress && (
             <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-              <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+              <div className="w-full max-w-md rounded-3xl bg-card p-6 shadow-[0_8px_32px_rgba(24,10,48,0.18)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
                 <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Pencil className="h-5 w-5" /> Editar dirección</h3>
                 <AddressForm
                   initialAddress={editingAddress}
@@ -1177,7 +1397,7 @@ export default function CheckoutPage() {
               </div>
             </div>
           )}
-          <form id="checkout-main-form" onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-8 bg-white rounded-lg shadow-md p-8">
+          <form id="checkout-main-form" onSubmit={handleSubmit} className="grid grid-cols-1 gap-8 rounded-3xl bg-card p-8 shadow-[0_2px_16px_rgba(24,10,48,0.10)] ring-1 ring-purple-100/70 md:grid-cols-2 dark:ring-purple-300/15">
             {/* Columna izquierda: datos de envío y pago */}
             <div className="space-y-6">
               <div>
@@ -1220,215 +1440,217 @@ export default function CheckoutPage() {
                 />
                 {personalErrors.phone && personalTouched.phone && <div className="text-red-500 text-xs mt-1">{personalErrors.phone}</div>}
               </div>
-              {/* Dirección de envío con validación en tiempo real */}
-              <div className="space-y-4">
-                <h3 className="font-medium text-gray-700">Dirección de Envío</h3>
-                <Input
-                  name="street"
-                  value={form.address.street}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur}
-                  required
-                  placeholder="Calle"
-                  className={addressErrors.street && addressTouched.street ? "border-red-500" : ""}
-                />
-                {addressErrors.street && addressTouched.street && <div className="text-red-500 text-xs mt-1">{addressErrors.street}</div>}
-                <Input
-                  name="city"
-                  value={form.address.city}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur}
-                  required
-                  placeholder="Ciudad"
-                  className={addressErrors.city && addressTouched.city ? "border-red-500" : ""}
-                />
-                {addressErrors.city && addressTouched.city && <div className="text-red-500 text-xs mt-1">{addressErrors.city}</div>}
-                <Input
-                  name="state"
-                  value={form.address.state}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur}
-                  required
-                  placeholder="Estado"
-                  className={addressErrors.state && addressTouched.state ? "border-red-500" : ""}
-                />
-                {addressErrors.state && addressTouched.state && <div className="text-red-500 text-xs mt-1">{addressErrors.state}</div>}
-                <Input
-                  name="zipCode"
-                  value={form.address.zipCode}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur}
-                  required
-                  placeholder="Código Postal"
-                  className={addressErrors.zipCode && addressTouched.zipCode ? "border-red-500" : ""}
-                />
-                {addressErrors.zipCode && addressTouched.zipCode && <div className="text-red-500 text-xs mt-1">{addressErrors.zipCode}</div>}
-                <Input
-                  name="country"
-                  value={form.address.country}
-                  onChange={handleAddressInputChange}
-                  onBlur={handleAddressInputBlur}
-                  required
-                  placeholder="País"
-                  className={addressErrors.country && addressTouched.country ? "border-red-500" : ""}
-                />
-                {addressErrors.country && addressTouched.country && <div className="text-red-500 text-xs mt-1">{addressErrors.country}</div>}
-              </div>
+              {/*
+                La dirección NO se pide aquí.
+                --------------------------------------------------------------
+                Había dos formularios de dirección en la misma página: éste, y
+                el selector de arriba. Sólo el de arriba contaba —es el que
+                guarda y el que elige—, así que se podía llenar todo esto, ver
+                la página completa, y seguir con el pago bloqueado por «Primero
+                selecciona una dirección de envío» sin ninguna pista de qué
+                faltaba.
 
+                Además el de arriba es el bueno: trae provincia y distrito de
+                Panamá como listas, y éste los pedía escritos a mano.
+              */}
               <div>
                 <div className="mb-8">
-                  <h2 className="text-lg font-bold mb-2 flex items-center gap-2"><CreditCard className="h-5 w-5" /> Método de Pago</h2>
-                  <div className="flex gap-4 mb-4">
-                    <Button variant={form.payment === "card" ? "default" : "outline"} onClick={() => { setForm(f => ({ ...f, payment: "card" })); setShowNewCard(false); }}>Tarjeta</Button>
-                    <Button variant={form.payment === "paypal" ? "default" : "outline"} onClick={() => { setForm(f => ({ ...f, payment: "paypal" })); setShowNewCard(false); }}>Paypal</Button>
-                </div>
-                  {form.payment === "card" && (
-                    <Elements stripe={stripePromise}>
-                      <PaymentForm
-                        amount={total}
-                        onSuccess={async (paymentIntentId, cardEmail) => {
-                          if (!user) {
-                            toast({ title: "Debes iniciar sesión", description: "Inicia sesión para completar la compra.", variant: "destructive" });
-                            return;
-                          }
-                          if (!selectedAddressId) {
-                            toast({ title: "Selecciona una dirección", description: "Debes seleccionar una dirección de envío.", variant: "destructive" });
-                            return;
-                          }
-                          const shippingAddress = addresses.find((a: any) => a.id === selectedAddressId);
-                          if (!shippingAddress) {
-                            toast({ title: "Error", description: "Dirección seleccionada no encontrada.", variant: "destructive" });
-                            return;
-                          }
-                          setLoading(true);
-                          try {
-                            const res = await fetch("/api/orders", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                userId: user.id,
-                                items: cart.map(item => ({
-                                  productId: item.id,
-                                  quantity: item.quantity,
-                                  price: item.price
-                                })),
-                                totalAmount: total,
-                                shippingAddress,
-                                paymentMethod: "card",
-                                paymentId: paymentIntentId,
-                                paidAt: new Date().toISOString()
-                              })
-                            });
-                            if (!res.ok) {
-                              const error = await res.json();
-                              toast({ title: "Error al registrar el pedido", description: error.message || "Intenta de nuevo más tarde.", variant: "destructive" });
-                              setLoading(false);
-                              return;
-                            }
-                            setLoading(false);
-                            setSubmitted(true);
-                            clearCart();
-                            setShowStripeSuccess({ paymentId: paymentIntentId, email: cardEmail });
-                          } catch (err: any) {
-                            setLoading(false);
-                            toast({ title: "Error de red", description: err?.message || "No se pudo conectar con el servidor.", variant: "destructive" });
-                          }
-                        }}
-                        onError={(err) => {
-                          toast({ title: "Error en Stripe", description: err?.toString() || "Error desconocido", variant: "destructive" });
-                        }}
-                        noFormWrapper={true}
-                      />
-                    </Elements>
+                  <h2 className="text-lg font-bold mb-3 flex items-center gap-2"><CreditCard className="h-5 w-5" /> Método de pago</h2>
+
+                  {/*
+                    PayPal y Yappy. Stripe se sacó de acá a propósito: no opera
+                    con entidades panameñas, así que el botón "Tarjeta" abría un
+                    formulario que nunca iba a poder cobrar.
+
+                    El botón de Yappy solo se enciende si el servidor dice que
+                    las credenciales están puestas. Si no, se ve apagado y
+                    explica por qué, en vez de mandar a la clienta a un cobro
+                    que va a fallar.
+                  */}
+                  <div className="flex flex-wrap gap-3 mb-4">
+                    <Button
+                      type="button"
+                      className="rounded-full"
+                      variant={form.payment === "paypal" ? "default" : "outline"}
+                      onClick={() => setForm(f => ({ ...f, payment: "paypal" }))}
+                    >
+                      PayPal
+                    </Button>
+                    <Button
+                      type="button"
+                      className="rounded-full"
+                      variant={form.payment === "yappy" ? "default" : "outline"}
+                      onClick={() => setForm(f => ({ ...f, payment: "yappy" }))}
+                    >
+                      Yappy
+                    </Button>
+                  </div>
+
+                  {form.payment === "yappy" && (
+                    <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/50 p-4 dark:border-white/10 dark:bg-white/5">
+                      {!pedidoYappy ? (
+                        <>
+                          <p className="mb-3 text-sm text-purple-900 dark:text-purple-100/80">
+                            Registramos tu pedido y te damos el número de Yappy de
+                            Mautik con el monto exacto. Pagas desde tu app del banco
+                            y Estéfani te confirma en cuanto lo recibe.
+                          </p>
+                          <Button
+                            type="button"
+                            className="h-11 rounded-full"
+                            disabled={preparandoYappy || !selectedAddressId}
+                            onClick={pagarConYappy}
+                          >
+                            {preparandoYappy ? "Registrando…" : `Pagar $${total.toFixed(2)} con Yappy`}
+                          </Button>
+                          {!selectedAddressId && (
+                            <p className="mt-2 text-xs text-purple-900/70 dark:text-purple-100/60">
+                              Primero selecciona una dirección de envío.
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full bg-purple-700 text-xs font-bold text-white">
+                              ✓
+                            </span>
+                            <p className="text-sm font-medium text-purple-900 dark:text-purple-100">
+                              Tu pedido quedó registrado. Ahora haz el Yappy para
+                              que lo preparemos.
+                            </p>
+                          </div>
+
+                          <div className="rounded-xl bg-card p-4 ring-1 ring-purple-100 dark:ring-white/10">
+                            <dl className="space-y-3 text-sm">
+                              <div className="flex items-center justify-between gap-3">
+                                <dt className="text-gray-600 dark:text-purple-100/70">Yappy a</dt>
+                                <dd className="text-lg font-bold tracking-wide text-purple-900 dark:text-purple-100">
+                                  {yappyBonito()}
+                                </dd>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <dt className="text-gray-600 dark:text-purple-100/70">Monto exacto</dt>
+                                <dd className="text-lg font-bold text-purple-900 dark:text-purple-100">
+                                  ${pedidoYappy.total.toFixed(2)}
+                                </dd>
+                              </div>
+                              <div className="flex items-center justify-between gap-3">
+                                <dt className="text-gray-600 dark:text-purple-100/70">
+                                  Escribe en el concepto
+                                </dt>
+                                <dd className="rounded-lg bg-purple-100 px-2.5 py-1 font-mono text-base font-bold tracking-widest text-purple-900 dark:bg-white/10 dark:text-purple-100">
+                                  {pedidoYappy.referencia}
+                                </dd>
+                              </div>
+                            </dl>
+                          </div>
+
+                          <p className="text-xs text-gray-600 dark:text-purple-100/70">
+                            Esa referencia es la que nos deja emparejar tu pago con tu
+                            pedido. Si se te olvida, escríbenos por WhatsApp y lo
+                            resolvemos igual.
+                          </p>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button asChild className="h-11 rounded-full">
+                              <Link href="/orders">Ver mis pedidos</Link>
+                            </Button>
+                            <Button asChild variant="outline" className="h-11 rounded-full">
+                              <a
+                                href={enlaceWhatsapp(
+                                  `Hola Mautik, acabo de hacer el Yappy del pedido ${pedidoYappy.referencia} por $${pedidoYappy.total.toFixed(2)}.`,
+                                )}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                              >
+                                Avisar por WhatsApp
+                              </a>
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
+
                   {form.payment === "paypal" && (
-                    <div className="mt-4 border rounded-lg p-4 bg-gray-50">
-                      <PayPalButton
-                        amount={total}
-                        currency="USD"
-                        onSuccess={async (orderId, payerEmail) => {
-                          if (!user) {
-                            toast({ title: "Debes iniciar sesión", description: "Inicia sesión para completar la compra.", variant: "destructive" });
-                            return;
-                          }
-                          if (!selectedAddressId) {
-                            toast({ title: "Selecciona una dirección", description: "Debes seleccionar una dirección de envío.", variant: "destructive" });
-                            return;
-                          }
-                          const shippingAddress = addresses.find((a: any) => a.id === selectedAddressId);
-                          if (!shippingAddress) {
-                            toast({ title: "Error", description: "Dirección seleccionada no encontrada.", variant: "destructive" });
-                            return;
-                          }
-                          setLoading(true);
-                          try {
-                            const res = await fetch("/api/orders", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                userId: user.id,
-                                items: cart.map(item => ({
-                                  productId: item.id,
-                                  quantity: item.quantity,
-                                  price: item.price
-                                })),
-                                totalAmount: total,
-                                shippingAddress,
-                                paymentMethod: "paypal",
-                                paymentId: orderId,
-                                paidAt: new Date().toISOString()
+                    <div className="mt-4 rounded-2xl border border-purple-100 bg-purple-50/50 p-4 dark:border-white/10 dark:bg-white/5">
+                      {!pedidoPaypalId ? (
+                        <>
+                          <p className="mb-3 text-sm text-purple-900 dark:text-purple-100/80">
+                            Elige la dirección de envío y sigue. El total lo calculamos
+                            acá con el envío incluido, y eso es lo que vas a ver en PayPal.
+                          </p>
+                          <Button
+                            type="button"
+                            className="rounded-full"
+                            disabled={preparandoPaypal || !selectedAddressId}
+                            onClick={prepararPedidoPaypal}
+                          >
+                            {preparandoPaypal ? "Preparando…" : "Continuar con PayPal"}
+                          </Button>
+                          {!selectedAddressId && (
+                            <p className="mt-2 text-xs text-purple-900/70 dark:text-purple-100/60">
+                              Primero selecciona una dirección de envío.
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          {totalServidor != null && (
+                            <p className="mb-3 text-sm font-medium text-purple-900 dark:text-purple-100">
+                              Total a pagar: ${totalServidor.toFixed(2)}
+                            </p>
+                          )}
+                          <PayPalButton
+                            orderId={pedidoPaypalId}
+                            items={articulos.map(item => ({ productId: item.id, quantity: item.quantity }))}
+                            direccion={addresses.find((a: any) => a.id === selectedAddressId)}
+                            currency="USD"
+                            onSuccess={() => {
+                              setSubmitted(true)
+                              clearCart()
+                              guardarCupon(null)
+                              toast({
+                                title: "¡Pago confirmado!",
+                                description: "Te mandamos el detalle del pedido por correo.",
                               })
-                            });
-                            if (!res.ok) {
-                              const error = await res.json();
-                              toast({ title: "Error al registrar el pedido", description: error.message || "Intenta de nuevo más tarde.", variant: "destructive" });
-                              setLoading(false);
-                              return;
-                            }
-                            setLoading(false);
-                            setSubmitted(true);
-                            clearCart();
-                            toast({
-                              title: "¡Pago exitoso!",
-                              description: `Tu pedido ha sido registrado.\nID de PayPal: ${orderId}${payerEmail ? `\nEmail de PayPal: ${payerEmail}` : ""}`,
-                              variant: "default"
-                            });
-                            setTimeout(() => {
-                              router.push("/orders");
-                            }, 2000);
-                          } catch (err: any) {
-                            setLoading(false);
-                            toast({ title: "Error de red", description: err?.message || "No se pudo conectar con el servidor.", variant: "destructive" });
-                          }
-                        }}
-                        onError={(err) => {
-                          toast({ title: "Error en PayPal", description: err?.toString() || "Error desconocido", variant: "destructive" });
-                        }}
-                      />
-                </div>
+                              setTimeout(() => router.push("/orders"), 1800)
+                            }}
+                            onError={(err) => {
+                              toast({
+                                title: "Error en PayPal",
+                                description: err?.message || err?.toString() || "Error desconocido",
+                                variant: "destructive",
+                              })
+                            }}
+                          />
+                        </>
+                      )}
+                    </div>
                   )}
                 </div>
               </div>
             </div>
 
             {/* Columna derecha: resumen del pedido */}
-            <div className="bg-indigo-50 rounded-lg p-6 shadow-inner">
-              <h3 className="font-semibold text-lg mb-4 text-indigo-800 flex items-center gap-2"><CreditCard className="h-5 w-5" /> Resumen del pedido</h3>
-              <ul className="divide-y divide-indigo-100 mb-4">
+            <div className="rounded-3xl bg-purple-50 p-6 dark:bg-white/5">
+              <h3 className="font-semibold text-lg mb-4 text-purple-800 flex items-center gap-2"><CreditCard className="h-5 w-5" /> Resumen del pedido</h3>
+              <ul className="divide-y divide-purple-100 mb-4">
                 {cart.map(item => (
                   <li key={item.id} className="py-2 flex items-center justify-between">
-                    <span className="font-medium text-gray-900">{item.name} <span className="text-xs text-gray-500">x{item.quantity}</span></span>
-                    <span className="text-gray-700">${(item.price * item.quantity).toFixed(2)}</span>
+                    <span className="font-medium text-gray-900 dark:text-purple-50">{item.name} <span className="text-xs text-gray-500 dark:text-purple-100/50">x{item.quantity}</span></span>
+                    <span className="text-gray-700 dark:text-purple-100/80">${(item.price * item.quantity).toFixed(2)}</span>
                   </li>
                 ))}
               </ul>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Subtotal</span>
-                <span className="text-gray-900 font-medium">${subtotal.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-purple-100/70">Subtotal</span>
+                <span className="text-gray-900 dark:text-purple-50 font-medium">${subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm mb-1">
-                <span className="text-gray-600">Envío</span>
-                <span className="text-gray-900 font-medium">${shippingCost.toFixed(2)}</span>
+                <span className="text-gray-600 dark:text-purple-100/70">Envío</span>
+                <span className="text-gray-900 dark:text-purple-50 font-medium">${shippingCost.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-base font-bold border-t pt-2 mt-2">
                 <span>Total</span>
@@ -1436,21 +1658,21 @@ export default function CheckoutPage() {
                         </div>
               {/* Método de pago seleccionado */}
               {selectedPaymentId && (
-                <div className="mt-4 p-3 rounded bg-white border flex items-center gap-3">
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-purple-100 bg-card p-3 dark:border-white/10">
                   {(() => {
                     const m = paymentMethods.find((m: any) => m.id === selectedPaymentId);
                     if (!m) return null;
                     return (
                       <div className="flex items-center gap-2">
                         {getCardIcon(m.brand)}
-                        <span className="font-medium text-gray-900">{m.brand} •••• {m.last4}</span>
+                        <span className="font-medium text-gray-900 dark:text-purple-50">{m.brand} •••• {m.last4}</span>
                         <Button size="sm" variant="outline" className="ml-2" onClick={() => setEditingPayment(m)}>Editar</Button>
                       </div>
                     );
                   })()}
                 </div>
               )}
-              <Button type="submit" className="w-full mt-6 bg-indigo-600 hover:bg-indigo-700 flex items-center justify-center" disabled={loading}>
+              <Button type="submit" className="w-full mt-6 bg-purple-600 hover:bg-purple-700 flex items-center justify-center" disabled={loading}>
                 {loading && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>}
                 {loading ? "Procesando..." : "Confirmar compra"}
               </Button>
@@ -1462,7 +1684,7 @@ export default function CheckoutPage() {
       {/* Modal de edición de tarjeta */}
       {editingPayment && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-md">
+          <div className="w-full max-w-md rounded-3xl bg-card p-6 shadow-[0_8px_32px_rgba(24,10,48,0.18)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
             <h3 className="font-semibold text-lg mb-4 flex items-center gap-2"><Pencil className="h-5 w-5" /> Editar tarjeta</h3>
             <form onSubmit={handleSaveEdit} className="space-y-4">
               <div>
@@ -1492,22 +1714,9 @@ export default function CheckoutPage() {
               </div>
               <div className="flex gap-2 justify-end mt-4">
                 <Button type="button" variant="outline" onClick={() => setEditingPayment(null)}>Cancelar</Button>
-                <Button type="submit" className="bg-indigo-600 hover:bg-indigo-700" disabled={savingEdit}>{savingEdit ? "Guardando..." : "Guardar cambios"}</Button>
+                <Button type="submit" className="bg-purple-600 hover:bg-purple-700" disabled={savingEdit}>{savingEdit ? "Guardando..." : "Guardar cambios"}</Button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
-      {showStripeSuccess && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center">
-            <h2 className="text-2xl font-bold text-green-700 mb-4">¡Pago exitoso!</h2>
-            <p className="mb-2 text-gray-700">Tu pedido ha sido registrado correctamente.</p>
-            <div className="mb-2 text-sm text-gray-600">ID de pago: <span className="font-mono">{showStripeSuccess.paymentId}</span></div>
-            {showStripeSuccess.email && <div className="mb-4 text-sm text-gray-600">Email: <span className="font-mono">{showStripeSuccess.email}</span></div>}
-            <Button className="bg-indigo-600 hover:bg-indigo-700 w-full" onClick={() => { setShowStripeSuccess(null); router.push("/orders"); }}>
-              Ver mis pedidos
-            </Button>
           </div>
         </div>
       )}
