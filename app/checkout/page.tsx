@@ -880,6 +880,12 @@ export default function CheckoutPage() {
         referencia: String(json.order.id).slice(0, 8).toUpperCase(),
         total: json.totales?.total ?? total,
       })
+      /*
+        El carrito se vacía DESPUÉS de fijar el pedido, y el `return` temprano
+        de arriba ya sabe no dispararse mientras haya uno esperando. El orden
+        importa: al revés, React alcanza a pintar un render con el carrito
+        vacío y sin pedido, que es la pantalla de «volver a la tienda».
+      */
       clearCart()
       guardarCupon(null)
     } catch {
@@ -1075,8 +1081,24 @@ export default function CheckoutPage() {
     }
   }, [submitted])
 
-  // Al inicio del componente CheckoutPage:
-  if (cart.length === 0) {
+  /*
+    El carrito vacío saca de la página… salvo cuando acaba de vaciarse solo.
+    ---------------------------------------------------------------------
+    Al registrar un pedido con Yappy se llama a `clearCart()`, y en el render
+    siguiente este `return` temprano se comía la pantalla entera: el pedido
+    quedaba creado en la base y la clienta terminaba en «Tu carrito está
+    vacío · Volver a la tienda», sin el número de Yappy, sin la referencia y
+    sin ninguna pista de que había pedido algo.
+
+    Mientras haya un pedido de Yappy esperando pago, esta pantalla no se
+    muestra: lo que tiene que verse son las instrucciones para pagarlo.
+
+    Lo mismo con `submitted`: al cobrar con PayPal también se vacía el
+    carrito, y como esta comprobación va ANTES de la de `submitted`, ganaba
+    ésta. O sea que un pago aprobado terminaba en «tu carrito está vacío» en
+    vez de en el resumen del pedido.
+  */
+  if (cart.length === 0 && !pedidoYappy && !submitted) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background">
         <div className="rounded-3xl bg-card p-8 text-center shadow-[0_2px_16px_rgba(24,10,48,0.10)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
