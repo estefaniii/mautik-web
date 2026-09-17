@@ -27,25 +27,37 @@
 	}
 
 	.dark {
-		--background: 224 71.4% 4.1%;
-		--foreground: 210 20% 98%;
-		--card: 224 71.4% 4.1%;
-		--card-foreground: 210 20% 98%;
-		--popover: 224 71.4% 4.1%;
-		--popover-foreground: 210 20% 98%;
-		--primary: 271 81% 56%;
-		--primary-foreground: 210 20% 98%;
-		--secondary: 215 27.9% 16.9%;
-		--secondary-foreground: 210 20% 98%;
-		--muted: 215 27.9% 16.9%;
-		--muted-foreground: 217.9 10.6% 64.9%;
-		--accent: 271 81% 24%;
-		--accent-foreground: 210 20% 98%;
-		--destructive: 0 62.8% 30.6%;
-		--destructive-foreground: 210 20% 98%;
-		--border: 215 27.9% 16.9%;
-		--input: 215 27.9% 16.9%;
-		--ring: 271 81% 56%;
+		/*
+		 * Escala oscura unificada de Mautik.
+		 *
+		 * Antes convivían tres familias distintas y por eso el modo oscuro se
+		 * veía sucio: las variables del tema en slate (tono 224), un override
+		 * global `.dark .bg-white` con degradado slate, y clases sueltas
+		 * `dark:bg-gray-800/900` en tono 215-221. Medido en el DOM.
+		 *
+		 * Ahora todo cuelga de un solo tono (265, el morado de la marca) con
+		 * saturación baja: se lee como "Mautik de noche" y no como panel de
+		 * control genérico. La marca sigue en --primary sin tocar.
+		 */
+		--background: 265 30% 7%;
+		--foreground: 265 10% 96%;
+		--card: 265 24% 11%;
+		--card-foreground: 265 10% 96%;
+		--popover: 265 24% 12%;
+		--popover-foreground: 265 10% 96%;
+		--primary: 271 81% 62%;
+		--primary-foreground: 265 30% 7%;
+		--secondary: 265 18% 17%;
+		--secondary-foreground: 265 10% 96%;
+		--muted: 265 18% 17%;
+		--muted-foreground: 265 12% 68%;
+		--accent: 271 55% 24%;
+		--accent-foreground: 265 10% 96%;
+		--destructive: 0 62.8% 40%;
+		--destructive-foreground: 265 10% 96%;
+		--border: 265 16% 22%;
+		--input: 265 16% 22%;
+		--ring: 271 81% 62%;
 	}
 }
 
@@ -53,14 +65,38 @@
 	* {
 		border-color: var(--border);
 	}
+
+	/*
+	 * El hueco de la barra de desplazamiento se reserva SIEMPRE.
+	 *
+	 * Al abrir el menú del perfil (o el de notificaciones, o cualquier
+	 * diálogo) se bloquea el scroll del cuerpo, desaparece la barra lateral y
+	 * la página gana de golpe los ~15px que ocupaba. El encabezado es fijo y
+	 * va de borde a borde, así que se ensanchaba y su contenido saltaba unos
+	 * 7px: eso es lo que se veía como que "el encabezado se encoge" al tocar
+	 * el perfil. Medido en producción: 1425px antes de abrir, 1440px después.
+	 *
+	 * Con el hueco reservado de entrada, quitar la barra no cambia nada.
+	 */
+	html {
+		scrollbar-gutter: stable;
+	}
+
 	body {
 		@apply bg-background text-foreground;
 		font-feature-settings: 'rlig' 1, 'calt' 1;
-		background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+		/*
+		 * Color firme, sin degradado. Antes era un linear-gradient de #f8fafc a
+		 * #e2e8f0: dos grises AZULES (slate) que le daban al modo claro un
+		 * fondo grisáceo que peleaba con el morado de la marca.
+		 */
+		background-color: hsl(var(--background));
 	}
 
 	.dark body {
-		background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%);
+		/* Un solo color, el mismo token que usan las tarjetas: sin degradado no
+		   hay franjas ni saltos de tono al hacer scroll. */
+		background-color: hsl(var(--background));
 	}
 
 	h1,
@@ -165,6 +201,22 @@
 	animation: pop 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* El menú móvil entra desde la derecha (ver components/navbar.tsx) */
+@keyframes slide-in-right {
+	from {
+		opacity: 0;
+		transform: translateX(40px);
+	}
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+.animate-slide-in-right {
+	animation: slide-in-right 0.32s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
 /* Animación slide-in para menú mobile */
 @keyframes slide-in {
 	from {
@@ -184,6 +236,27 @@
 * {
 	transition: background-color 0.3s ease, border-color 0.3s ease,
 		color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/*
+ * El cambio de claro a oscuro tiene que pasar DE GOLPE.
+ *
+ * Con la regla de arriba, cada elemento cruza de un color a otro en 0,3s...
+ * salvo los que además llevan `transition-colors` de Tailwind, que tardan
+ * 0,15s. O sea que en el encabezado los enlaces terminaban de cambiar cuando
+ * la barra iba por la mitad: durante un instante quedaba texto claro sobre
+ * fondo todavía claro y la barra parecía partirse. Eso es lo que se veía como
+ * que "se descuadra el encabezado" al tocar el botón.
+ *
+ * Mientras dura el cambio se apagan TODAS las transiciones, así el tema
+ * entero se repinta en un solo fotograma. Después se vuelven a encender, que
+ * es lo que le da suavidad al resto de la navegación.
+ */
+html.cambiando-tema *,
+html.cambiando-tema *::before,
+html.cambiando-tema *::after {
+	transition: none !important;
+	animation-duration: 0.01ms !important;
 }
 
 /* Estilos específicos para modo oscuro */
@@ -214,30 +287,68 @@
 	color-scheme: dark;
 }
 
+/*
+ * `bg-white` aparece en decenas de tarjetas. En modo oscuro se repintaba con
+ * un degradado slate que, encima del fondo, dejaba las tarjetas con un tinte
+ * distinto al resto. Ahora usa el token plano de tarjeta: una sola superficie,
+ * sin degradado, y el borde da la separación.
+ */
 .dark .bg-white {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
+	background: hsl(var(--card));
+	border-color: hsl(var(--border));
 }
 
+/*
+ * Muchos componentes traen `dark:bg-gray-800/900/950` escritos a mano, que son
+ * de otra familia (gris azulado) y rompen la unidad. Los remapeamos a los
+ * tokens en vez de editar cuarenta archivos.
+ */
+/* Se usan selectores por atributo (no la clase escapada) a propósito: así
+   también entran las variantes con opacidad como `dark:bg-gray-900/50`, que
+   generan otro nombre de clase y se quedaban fuera. */
+/* Superficie del navbar. Se hace con una clase propia y no con una utilidad de
+   Tailwind porque el valor arbitrario `dark:bg-[hsl(265_32%_6%_/_0.92)]` no se
+   generaba (los / y % dentro del valor no los detecta el escáner). */
+.navbar-superficie {
+	background-color: rgb(255 255 255 / 0.9);
+}
+html.dark .navbar-superficie {
+	/* `!important` a conciencia. Verifiqué que html tiene .dark, que el elemento
+	   lleva la clase y que el selector matchea, y aun así ganaba la regla clara.
+	   Es un solo elemento y no vale seguir peleando con la cascada acá. */
+	background-color: hsl(265 32% 6% / 0.92) !important;
+}
+/*
+ * Acá había ocho reglas con selectores de atributo (`[class*="dark:bg-gray-900"]`)
+ * que repintaban a mano cada gris de Tailwind usado en modo oscuro. Eran un
+ * parche: la escala `gray` es fría (azulada) y la paleta de Mautik es violeta,
+ * así que en vez de corregir las clases se las tapaba desde el CSS.
+ *
+ * Ahora los 210 usos de `dark:*-gray-*` están reemplazados por los tokens del
+ * tema en cada componente, así que el parche sobra. Menos CSS peleando con la
+ * cascada y lo que se lee en el componente es lo que se ve.
+ */
+
 .dark .bg-purple-800 {
-	background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
+	background-color: hsl(265 72% 52%);
 }
 
 .dark .bg-purple-800:hover {
-	background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-	box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+	background-color: hsl(265 74% 58%);
 }
 
+/*
+ * Estos overrides venían del modo oscuro viejo, hecho en slate (azul pizarra,
+ * tono 215). El tema de Mautik cuelga del morado (tono 265), así que cada uno
+ * de ellos metía un degradado azul en elementos que nadie pidió: inputs,
+ * cualquier `bg-gradient-to-br`, las tarjetas, los bordes y la barra de
+ * scroll. Es el origen del "modo oscuro como que no": la mitad de la interfaz
+ * tiraba a azul y la otra a morado. Ahora todos usan los tokens del tema y
+ * son colores planos, sin degradado.
+ */
 .dark input {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.8) 0%,
-		rgba(51, 65, 85, 0.8) 100%
-	);
-	border-color: rgba(71, 85, 105, 0.5);
+	background-color: hsl(var(--muted) / 0.7);
+	border-color: hsl(var(--border));
 }
 
 .dark input:focus {
@@ -246,37 +357,30 @@
 }
 
 .dark .text-gray-900 {
-	color: #f8fafc;
+	color: hsl(var(--foreground));
 }
 
 .dark .text-gray-700 {
-	color: #e2e8f0;
+	color: hsl(var(--foreground) / 0.85);
 }
 
 .dark .text-gray-500 {
-	color: #94a3b8;
+	color: hsl(var(--muted-foreground));
 }
 
 .dark .hover\:bg-gray-50:hover {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.3) 0%,
-		rgba(51, 65, 85, 0.3) 100%
-	);
+	background-color: hsl(var(--muted) / 0.5);
 }
 
 .dark .hover\:text-purple-800:hover {
 	color: #a855f7;
 }
 
-.dark .bg-gradient-to-br {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 50%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-}
+/*
+ * Quitado: `.dark .bg-gradient-to-br` pisaba TODOS los degradados de la app en
+ * modo oscuro con uno azul, incluido el del hueco de foto de las tarjetas.
+ * Cada componente define el suyo con clases `dark:` y se respeta.
+ */
 
 .dark .backdrop-blur-xl {
 	backdrop-filter: blur(24px);
@@ -293,7 +397,7 @@
 }
 
 .dark * {
-	scrollbar-color: #475569 #1e293b;
+	scrollbar-color: hsl(265 20% 35%) hsl(var(--background));
 }
 
 .dark .product-card-hover:hover {
@@ -302,32 +406,24 @@
 }
 
 .dark .bg-purple-100 {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.1) 0%,
-		rgba(168, 85, 247, 0.1) 100%
-	);
+	background-color: hsl(265 60% 55% / 0.14);
 }
 
 .dark .text-purple-800 {
 	color: #a855f7;
 }
 
+/* Las superficies usan el token `--card`; ya no hace falta pisarlas acá. */
 .dark .bg-white.dark\:bg-gray-900 {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
+	background-color: hsl(var(--card));
 }
 
 .dark .border-gray-200 {
-	border-color: rgba(71, 85, 105, 0.5);
+	border-color: hsl(var(--border));
 }
 
 .dark .border-gray-100 {
-	border-color: rgba(71, 85, 105, 0.3);
+	border-color: hsl(var(--border) / 0.6);
 }
 
 .dark .focus\:ring-purple-400:focus {
@@ -340,276 +436,43 @@
 }
 
 .dark ::-webkit-scrollbar-track {
-	background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+	background-color: hsl(var(--background));
 }
 
 .dark ::-webkit-scrollbar-thumb {
-	background: linear-gradient(135deg, #475569 0%, #64748b 100%);
+	background-color: hsl(265 20% 34%);
 	border-radius: 4px;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-	background: linear-gradient(135deg, #64748b 0%, #94a3b8 100%);
+	background-color: hsl(265 22% 46%);
 }
 
-/* Enhanced dark mode gradients and effects */
-.dark .bg-gradient-to-r {
-	background: linear-gradient(
-		90deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 50%,
-		rgba(15, 23, 42, 0.95) 100%
-	);
-}
-
-.dark .bg-gradient-to-t {
-	background: linear-gradient(
-		0deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-}
-
-.dark .bg-gradient-to-b {
-	background: linear-gradient(
-		180deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(15, 23, 42, 0.95) 100%
-	);
-}
-
-/* Enhanced button styles for dark mode */
-.dark .btn-primary {
-	background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 100%);
-	box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
-}
-
-.dark .btn-primary:hover {
-	background: linear-gradient(135deg, #8b5cf6 0%, #a855f7 100%);
-	box-shadow: 0 6px 16px rgba(139, 92, 246, 0.4);
-}
-
-/* Enhanced card styles for dark mode */
-.dark .card {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
-	border: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-.dark .card:hover {
-	box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
-	border-color: rgba(139, 92, 246, 0.3);
-}
-
-/* Enhanced form elements for dark mode */
-.dark .form-input {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.8) 0%,
-		rgba(51, 65, 85, 0.8) 100%
-	);
-	border: 1px solid rgba(71, 85, 105, 0.5);
-}
-
-.dark .form-input:focus {
-	border-color: #a855f7;
-	box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.1);
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.9) 0%,
-		rgba(51, 65, 85, 0.9) 100%
-	);
-}
-
-/* Enhanced dropdown styles for dark mode */
-.dark .dropdown-content {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
-	border: 1px solid rgba(71, 85, 105, 0.3);
-	box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
-}
-
-.dark .dropdown-item:hover {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.1) 0%,
-		rgba(168, 85, 247, 0.1) 100%
-	);
-}
-
-/* Enhanced modal styles for dark mode */
-.dark .modal-overlay {
-	background: rgba(0, 0, 0, 0.6);
-	backdrop-filter: blur(8px);
-}
-
-.dark .modal-content {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
-	border: 1px solid rgba(71, 85, 105, 0.3);
-	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-}
-
-/* Enhanced table styles for dark mode */
-.dark .table {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-}
-
-.dark .table th {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.8) 0%,
-		rgba(30, 41, 59, 0.8) 100%
-	);
-	border-bottom: 1px solid rgba(71, 85, 105, 0.5);
-}
-
-.dark .table td {
-	border-bottom: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-.dark .table tr:hover {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.05) 0%,
-		rgba(168, 85, 247, 0.05) 100%
-	);
-}
-
-/* Enhanced navigation styles for dark mode */
-.dark .nav-link {
-	color: #e2e8f0;
-	transition: all 0.3s ease;
-}
-
-.dark .nav-link:hover {
-	color: #a855f7;
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.1) 0%,
-		rgba(168, 85, 247, 0.1) 100%
-	);
-}
-
-.dark .nav-link.active {
-	color: #a855f7;
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.15) 0%,
-		rgba(168, 85, 247, 0.15) 100%
-	);
-}
-
-/* Enhanced sidebar styles for dark mode */
-.dark .sidebar {
-	background: linear-gradient(
-		180deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	backdrop-filter: blur(20px);
-	border-right: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-/* Enhanced footer styles for dark mode */
-.dark .footer {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	border-top: 1px solid rgba(71, 85, 105, 0.3);
-}
-
-/* Enhanced loading states for dark mode */
-.dark .loading {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.8) 0%,
-		rgba(51, 65, 85, 0.8) 100%
-	);
-}
-
-.dark .loading::after {
-	background: linear-gradient(
-		90deg,
-		transparent 0%,
-		rgba(139, 92, 246, 0.2) 50%,
-		transparent 100%
-	);
-}
-
-/* Enhanced tooltip styles for dark mode */
-.dark .tooltip {
-	background: linear-gradient(
-		135deg,
-		rgba(15, 23, 42, 0.95) 0%,
-		rgba(30, 41, 59, 0.95) 100%
-	);
-	border: 1px solid rgba(71, 85, 105, 0.3);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-/* Enhanced notification styles for dark mode */
-.dark .notification {
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-	border: 1px solid rgba(71, 85, 105, 0.3);
-	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.dark .notification.success {
-	border-color: rgba(34, 197, 94, 0.3);
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-}
-
-.dark .notification.error {
-	border-color: rgba(239, 68, 68, 0.3);
-	background: linear-gradient(
-		135deg,
-		rgba(30, 41, 59, 0.95) 0%,
-		rgba(51, 65, 85, 0.95) 100%
-	);
-}
-
-/* Enhanced badge styles for dark mode */
+/*
+ * Acá vivía un bloque de ~260 líneas titulado "Enhanced dark mode gradients
+ * and effects", heredado de la plantilla. Hacía dos cosas, las dos malas:
+ *
+ * 1. Pisaba las utilidades de degradado de Tailwind en modo oscuro
+ *    (`.dark .bg-gradient-to-r`, `-to-t`, `-to-b`, `-to-br`) con degradados
+ *    en slate, o sea azul pizarra. Cualquier degradado que pusiera un
+ *    componente —el del hero, el de las tarjetas, el de los botones— se
+ *    volvía azul en modo oscuro sin que nadie lo pidiera. Ese era el origen
+ *    del azul que no cuadraba con el morado de la marca.
+ *
+ * 2. Estilaba clases que NO EXISTEN en este proyecto: .btn-primary,
+ *    .form-input, .dropdown-content, .modal-overlay, .table, .nav-link,
+ *    .sidebar, .notification, .progress, .tooltip. Verificado: cero usos en
+ *    app/ y components/.
+ *
+ * Los estilos de verdad salen de las variables del tema (arriba) y de las
+ * clases `dark:` de cada componente. La copia anterior del archivo quedó en
+ * app/globals.css.bak2.
+ */
 .dark .badge {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.2) 0%,
-		rgba(168, 85, 247, 0.2) 100%
-	);
-	border: 1px solid rgba(139, 92, 246, 0.3);
+	background-color: hsl(265 60% 55% / 0.18);
+	border: 1px solid hsl(265 60% 60% / 0.3);
 }
 
 .dark .badge:hover {
-	background: linear-gradient(
-		135deg,
-		rgba(139, 92, 246, 0.3) 0%,
-		rgba(168, 85, 247, 0.3) 100%
-	);
-	box-shadow: 0 2px 8px rgba(139, 92, 246, 0.2);
+	background-color: hsl(265 60% 58% / 0.28);
 }

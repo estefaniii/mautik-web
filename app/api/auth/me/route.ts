@@ -1,25 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
+ * Quién está conectada.
+ *
+ * ⚠️ Esto miraba SOLO la cookie `auth-token`, y esa cookie no la tiene nadie:
+ * los inicios de sesión —tanto el de Google como el de correo y contraseña—
+ * pasan por NextAuth, que guarda su propia sesión. Verificado en producción:
+ * la ruta respondía `isAuthenticated: false` con la sesión abierta.
+ *
+ * Por eso el perfil mostraba el teléfono y la dirección vacíos aunque
+ * estuvieran guardados. `getAuthUser` mira primero la sesión de NextAuth y
+ * después la cookie, que es como se autentica el resto de la aplicación.
+ */
 export async function GET(request: NextRequest) {
 	try {
-		// Obtener el token de las cookies
-		const token = request.cookies.get('auth-token')?.value;
-
-		if (!token) {
-			return NextResponse.json({
-				isAuthenticated: false,
-				message: 'No token found',
-			});
-		}
-
-		// Verificar el token
-		const userPayload = verifyToken(token);
+		const userPayload = await getAuthUser(request);
 		if (!userPayload) {
 			return NextResponse.json({
 				isAuthenticated: false,
-				message: 'Invalid token',
+				message: 'No session',
 			});
 		}
 
@@ -36,6 +40,9 @@ export async function GET(request: NextRequest) {
 				avatar: true,
 				address: true,
 				phone: true,
+				// Sin esto el perfil siempre decía "Miembro desde Reciente":
+				// la fecha no llegaba nunca al navegador.
+				createdAt: true,
 			},
 		});
 
@@ -56,6 +63,7 @@ export async function GET(request: NextRequest) {
 				avatar: user.avatar,
 				address: user.address,
 				phone: user.phone,
+				createdAt: user.createdAt,
 			},
 		});
 	} catch (error) {

@@ -1,25 +1,36 @@
+import type { Metadata } from "next"
+
+// Metadata propia de la página. Antes todas heredaban el título genérico del
+// layout raíz, así que en Google salían todas iguales.
+export const metadata: Metadata = {
+  title: "Términos y Condiciones",
+  description: "Condiciones de compra, envío y devolución de los productos artesanales de Mautik.",
+  alternates: { canonical: "/terms-of-service" },
+  openGraph: { title: "Términos y Condiciones · Mautik", description: "Condiciones de compra, envío y devolución de los productos artesanales de Mautik.", url: "/terms-of-service" },
+}
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, FileText, ShoppingBag, CreditCard, Truck, Shield } from "lucide-react"
 
 export default function TermsOfServicePage() {
   return (
-    <div className="bg-gradient-to-b from-purple-50 to-white min-h-screen py-12">
+    <div className="bg-background min-h-screen py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/">
-              <Button variant="ghost" className="mb-4">
+            <Button variant="ghost" className="mb-4" asChild>
+              <Link href="/">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al Inicio
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <div className="flex items-center mb-6">
               <FileText className="h-8 w-8 text-purple-800 mr-3" />
               <h1 className="font-display text-4xl font-bold text-purple-900">Términos de Servicio</h1>
             </div>
-            <p className="text-gray-600">Última actualización: {new Date().toLocaleDateString('es-ES')}</p>
+            <p className="text-gray-600 dark:text-purple-100/70">Última actualización: {new Date().toLocaleDateString('es-ES')}</p>
           </div>
 
           {/* Content */}
@@ -29,7 +40,7 @@ export default function TermsOfServicePage() {
                 <ShoppingBag className="h-6 w-6 mr-2" />
                 Aceptación de Términos
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Al acceder y utilizar el sitio web de Mautik, aceptas estar sujeto a estos términos y condiciones de servicio. 
                   Si no estás de acuerdo con alguna parte de estos términos, no debes utilizar nuestro servicio.
@@ -42,7 +53,7 @@ export default function TermsOfServicePage() {
                 <CreditCard className="h-6 w-6 mr-2" />
                 Pedidos y Pagos
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p><strong>Proceso de Pedidos:</strong></p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Todos los pedidos están sujetos a disponibilidad de productos</li>
@@ -65,7 +76,7 @@ export default function TermsOfServicePage() {
                 <Truck className="h-6 w-6 mr-2" />
                 Envíos y Entregas
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p><strong>Política de Envíos:</strong></p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Tiempo de entrega estimado: 3-7 días hábiles</li>
@@ -87,7 +98,7 @@ export default function TermsOfServicePage() {
                 <Shield className="h-6 w-6 mr-2" />
                 Devoluciones y Reembolsos
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p><strong>Política de Devoluciones:</strong></p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Devoluciones aceptadas dentro de los 14 días posteriores a la compra</li>
@@ -107,7 +118,7 @@ export default function TermsOfServicePage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Productos Artesanales</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Todos nuestros productos son artesanales y hechos a mano, lo que significa:
                 </p>
@@ -122,7 +133,7 @@ export default function TermsOfServicePage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Propiedad Intelectual</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Todo el contenido de este sitio web, incluyendo textos, imágenes, logos y diseños, 
                   es propiedad exclusiva de Mautik y está protegido por las leyes de propiedad intelectual.
@@ -132,7 +143,7 @@ export default function TermsOfServicePage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Limitación de Responsabilidad</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Mautik no será responsable por daños indirectos, incidentales o consecuentes 
                   que puedan resultar del uso de nuestros productos o servicios.
@@ -142,7 +153,7 @@ export default function TermsOfServicePage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Modificaciones</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Nos reservamos el derecho de modificar estos términos en cualquier momento. 
                   Los cambios entrarán en vigor inmediatamente después de su publicación en el sitio web.
@@ -152,7 +163,7 @@ export default function TermsOfServicePage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Contacto</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Si tienes preguntas sobre estos términos de servicio, contáctanos:
                 </p>

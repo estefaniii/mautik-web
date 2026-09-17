@@ -1,25 +1,36 @@
+import type { Metadata } from "next"
+
+// Metadata propia de la página. Antes todas heredaban el título genérico del
+// layout raíz, así que en Google salían todas iguales.
+export const metadata: Metadata = {
+  title: "Política de Privacidad",
+  description: "Cómo Mautik recopila, usa y protege tus datos personales cuando compras en nuestra tienda.",
+  alternates: { canonical: "/privacy-policy" },
+  openGraph: { title: "Política de Privacidad · Mautik", description: "Cómo Mautik recopila, usa y protege tus datos personales cuando compras en nuestra tienda.", url: "/privacy-policy" },
+}
+
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Shield, Eye, Lock, Users } from "lucide-react"
 
 export default function PrivacyPolicyPage() {
   return (
-    <div className="bg-gradient-to-b from-purple-50 to-white min-h-screen py-12">
+    <div className="bg-background min-h-screen py-12">
       <div className="container mx-auto px-4">
         <div className="max-w-4xl mx-auto">
           {/* Header */}
           <div className="mb-8">
-            <Link href="/">
-              <Button variant="ghost" className="mb-4">
+            <Button variant="ghost" className="mb-4" asChild>
+              <Link href="/">
                 <ArrowLeft className="h-4 w-4 mr-2" />
                 Volver al Inicio
-              </Button>
-            </Link>
+              </Link>
+            </Button>
             <div className="flex items-center mb-6">
               <Shield className="h-8 w-8 text-purple-800 mr-3" />
               <h1 className="font-display text-4xl font-bold text-purple-900">Política de Privacidad</h1>
             </div>
-            <p className="text-gray-600">Última actualización: {new Date().toLocaleDateString('es-ES')}</p>
+            <p className="text-gray-600 dark:text-purple-100/70">Última actualización: {new Date().toLocaleDateString('es-ES')}</p>
           </div>
 
           {/* Content */}
@@ -29,7 +40,7 @@ export default function PrivacyPolicyPage() {
                 <Eye className="h-6 w-6 mr-2" />
                 Información que Recopilamos
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   En Mautik, recopilamos la siguiente información para brindarte la mejor experiencia posible:
                 </p>
@@ -47,7 +58,7 @@ export default function PrivacyPolicyPage() {
                 <Lock className="h-6 w-6 mr-2" />
                 Cómo Utilizamos tu Información
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>Utilizamos tu información para:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Procesar y completar tus pedidos</li>
@@ -64,7 +75,7 @@ export default function PrivacyPolicyPage() {
                 <Users className="h-6 w-6 mr-2" />
                 Compartir Información
               </h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   No vendemos, alquilamos ni compartimos tu información personal con terceros, excepto:
                 </p>
@@ -78,7 +89,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Seguridad de Datos</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Implementamos medidas de seguridad técnicas y organizativas para proteger tu información personal:
                 </p>
@@ -93,7 +104,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Tus Derechos</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>Tienes derecho a:</p>
                 <ul className="list-disc list-inside space-y-2 ml-4">
                   <li>Acceder a tu información personal</li>
@@ -107,7 +118,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Cookies</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Utilizamos cookies para mejorar tu experiencia en nuestro sitio web. Puedes controlar el uso de cookies a través de la configuración de tu navegador.
                 </p>
@@ -116,7 +127,7 @@ export default function PrivacyPolicyPage() {
 
             <section>
               <h2 className="text-2xl font-bold text-purple-900 mb-4">Contacto</h2>
-              <div className="space-y-4 text-gray-700">
+              <div className="space-y-4 text-gray-700 dark:text-purple-100/80">
                 <p>
                   Si tienes preguntas sobre esta política de privacidad, contáctanos:
                 </p>

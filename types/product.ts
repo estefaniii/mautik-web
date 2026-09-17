@@ -7,8 +7,6 @@ export interface Product {
 	category: string;
 	images: string[];
 	stock: number;
-	rating?: number;
-	reviewCount?: number;
 	featured?: boolean;
 	isNew?: boolean;
 	discount?: number;

@@ -83,6 +83,10 @@ export const authOptions: NextAuthOptions = {
 	],
 	session: {
 		strategy: 'jwt',
+		// 30 días, y se renueva cada vez que la clienta vuelve: sin esto NextAuth
+		// usa su default y la sesión se cae sin aviso a mitad de una compra.
+		maxAge: 30 * 24 * 60 * 60,
+		updateAge: 24 * 60 * 60,
 	},
 	callbacks: {
 		async jwt({ token, user, account }) {

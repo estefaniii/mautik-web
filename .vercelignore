@@ -1,0 +1,14 @@
+# El .env local tiene valores de desarrollo (NEXT_PUBLIC_SITE_URL=http://localhost:3000)
+# y si llega al build de Vercel envenena los canonical y los og:url de producción.
+# Las variables de producción se configuran en el panel de Vercel, no acá.
+.env
+.env.*
+!.env.example
+
+# No hace falta subir esto al build
+dist
+dist-seed
+mautik-web
+__tests__
+*.log
+*.bak

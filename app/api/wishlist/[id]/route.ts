@@ -21,11 +21,11 @@ const verifyTokenFromCookies = (request: NextRequest) => {
 	}
 };
 
-// Uso de 'params' actualizado para Next.js 13+ API routes
+// En Next.js 16 `params` es una Promise: hay que esperarla antes de leer el id.
 // DELETE - Remover producto específico de wishlist
 export async function DELETE(
 	request: NextRequest,
-	context: { params: { id: string } },
+	context: { params: Promise<{ id: string }> },
 ) {
 	try {
 		const user = verifyTokenFromCookies(request);
@@ -34,7 +34,7 @@ export async function DELETE(
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 		}
 
-		const productId = context.params.id;
+		const productId = (await context.params).id;
 
 		// Verificar que el producto existe
 		const product = await prisma.product.findUnique({

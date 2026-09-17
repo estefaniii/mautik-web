@@ -31,13 +31,13 @@ export function ThemeIndicator({ size = "md", showText = false, className = "" }
           {isDarkMode ? (
             <Sun className={`${sizeClasses[size]} text-yellow-500 animate-pulse`} />
           ) : (
-            <Moon className={`${sizeClasses[size]} text-gray-600 dark:text-gray-300`} />
+            <Moon className={`${sizeClasses[size]} text-gray-600 dark:text-purple-100/80`} />
           )}
         </div>
-        <div className={`absolute inset-0 ${sizeClasses[size]} bg-gradient-to-r from-purple-400/20 to-blue-400/20 rounded-full opacity-0 ${isDarkMode ? 'opacity-100' : ''} transition-opacity duration-300`}></div>
+        <div className={`absolute inset-0 ${sizeClasses[size]} bg-purple-400/20 rounded-full opacity-0 ${isDarkMode ? 'opacity-100' : ''} transition-opacity duration-300`}></div>
       </div>
       {showText && (
-        <span className={`${textSizeClasses[size]} font-medium text-gray-700 dark:text-gray-300 transition-colors duration-300`}>
+        <span className={`${textSizeClasses[size]} font-medium text-gray-700 dark:text-purple-100/80 transition-colors duration-300`}>
           {isDarkMode ? "Oscuro" : "Claro"}
         </span>
       )}

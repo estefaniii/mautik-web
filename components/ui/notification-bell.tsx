@@ -107,10 +107,14 @@ export function NotificationBell() {
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
       <DropdownMenuTrigger asChild>
+        {/*
+          44x44 de área de toque: el botón medía 24x24 por un `style` en línea,
+          bastante por debajo del mínimo recomendado para el dedo. El ícono
+          sigue igual de grande; lo que crece es la zona que responde.
+        */}
         <button
-          className="relative group flex items-center justify-center bg-transparent p-0 border-none shadow-none"
+          className="group relative grid h-11 w-11 place-items-center rounded-full border-none bg-transparent p-0 shadow-none transition-colors hover:bg-purple-50 dark:hover:bg-white/10"
           aria-label="Notificaciones"
-          style={{ width: 24, height: 24 }}
         >
           <Bell className="h-6 w-6 text-purple-800 dark:text-purple-300 transition-colors group-hover:text-purple-700 dark:group-hover:text-purple-200" />
           {unreadCount > 0 && (
@@ -123,7 +127,16 @@ export function NotificationBell() {
           )}
         </button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-80 max-h-96 overflow-y-auto">
+      {/*
+        El marco venía con el borde duro que trae el componente por defecto y
+        se veía como una caja pegada sobre la página. Se suaviza: esquinas más
+        redondas, borde apenas insinuado y una sombra difusa en vez de línea.
+      */}
+      <DropdownMenuContent
+        align="end"
+        sideOffset={10}
+        className="w-80 max-h-96 overflow-y-auto rounded-2xl border-purple-100/70 p-1.5 shadow-[0_12px_40px_rgba(24,10,48,0.14)] dark:border-white/10"
+      >
         <DropdownMenuLabel className="flex items-center justify-between">
           <span>Notificaciones</span>
           {unreadCount > 0 && (
@@ -140,18 +153,18 @@ export function NotificationBell() {
         <DropdownMenuSeparator />
         
         {isLoading ? (
-          <div className="p-4 text-center text-sm text-gray-500">
+          <div className="p-6 text-center text-sm text-gray-500 dark:text-purple-100/60">
             Cargando notificaciones...
           </div>
         ) : notifications.length === 0 ? (
-          <div className="p-4 text-center text-sm text-gray-500">
+          <div className="p-6 text-center text-sm text-gray-500 dark:text-purple-100/60">
             No hay notificaciones
           </div>
         ) : (
           notifications.map((notification) => (
             <DropdownMenuItem
               key={notification.id}
-              className={`flex flex-col items-start p-3 cursor-pointer hover:bg-gray-50 ${
+              className={`flex flex-col items-start p-3 cursor-pointer hover:bg-purple-50 dark:hover:bg-white/5 ${
                 !notification.isRead ? 'bg-blue-50' : ''
               }`}
               onClick={() => !notification.isRead && markAsRead(notification.id)}

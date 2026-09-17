@@ -152,7 +152,7 @@ export default function AddressForm({ initialAddress, onSave, loading, disabled,
           disabled={loading || disabled || saving}
           autoComplete="country"
           required
-          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.country && touched.country ? "border-red-500" : ""}`}
+          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${errors.country && touched.country ? "border-red-500" : ""}`}
         />
         {errors.country && <p className="text-red-500 text-xs mt-1">{errors.country}</p>}
       </div>
@@ -171,7 +171,7 @@ export default function AddressForm({ initialAddress, onSave, loading, disabled,
           onBlur={handleBlur}
           disabled={loading || disabled || saving || !country}
           required
-          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.state && touched.state ? "border-red-500" : ""}`}
+          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${errors.state && touched.state ? "border-red-500" : ""}`}
         >
           <option value="">Selecciona una provincia</option>
           {provincias.map(p => <option key={p} value={p}>{p}</option>)}
@@ -191,7 +191,7 @@ export default function AddressForm({ initialAddress, onSave, loading, disabled,
           onBlur={handleBlur}
           disabled={loading || disabled || saving || !province}
           required
-          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.city && touched.city ? "border-red-500" : ""}`}
+          className={`mb-1 border rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 ${errors.city && touched.city ? "border-red-500" : ""}`}
         >
           <option value="">Selecciona un distrito</option>
           {province && (provinciasDistritos[province] || []).map(d => <option key={d} value={d}>{d}</option>)}

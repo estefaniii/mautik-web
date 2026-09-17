@@ -27,9 +27,9 @@ export function LoadingOverlay({
 }) {
   return (
     <div className={`fixed inset-0 bg-black/50 flex items-center justify-center z-50 ${className}`}>
-      <div className="bg-white dark:bg-gray-900 rounded-lg p-6 flex flex-col items-center space-y-4">
+      <div className="bg-white dark:bg-card rounded-lg p-6 flex flex-col items-center space-y-4">
         <LoadingSpinner size="lg" />
-        <p className="text-gray-600 dark:text-gray-400">{message}</p>
+        <p className="text-gray-600 dark:text-purple-100/60">{message}</p>
       </div>
     </div>
   )
@@ -38,7 +38,7 @@ export function LoadingOverlay({
 // Product card skeleton
 export function ProductCardSkeleton() {
   return (
-    <div className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-full flex flex-col">
+    <div className="bg-white dark:bg-card rounded-xl shadow-lg border border-gray-200 dark:border-white/10 h-full flex flex-col">
       <div className="relative">
         <Skeleton className="h-64 w-full" />
         <div className="absolute top-3 left-3 space-y-2">
@@ -53,7 +53,7 @@ export function ProductCardSkeleton() {
         <Skeleton className="h-4 w-20 mb-3" />
         <Skeleton className="h-6 w-3/4 mb-2" />
         <Skeleton className="h-4 w-full mb-4" />
-        <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-100 dark:border-gray-800">
+        <div className="flex justify-between items-center mt-auto pt-3 border-t border-gray-100 dark:border-white/10">
           <Skeleton className="h-6 w-20" />
           <Skeleton className="h-4 w-16" />
         </div>
@@ -127,7 +127,7 @@ export function PageSkeleton() {
 // Inline loading
 export function InlineLoading({ message = "Cargando..." }: { message?: string }) {
   return (
-    <div className="flex items-center space-x-2 text-gray-600 dark:text-gray-400">
+    <div className="flex items-center space-x-2 text-gray-600 dark:text-purple-100/60">
       <LoadingSpinner size="sm" />
       <span className="text-sm">{message}</span>
     </div>

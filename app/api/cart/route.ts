@@ -1,16 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth-config';
 
-// Obtener carrito del usuario autenticado
-export async function GET(request: NextRequest) {
+async function getAuthUser(request: NextRequest) {
+	// 1. NextAuth session
+	const session = await getServerSession(authOptions);
+	if (session?.user?.email) {
+		const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+		if (user) return user;
+	}
+	// 2. Fallback: cookie auth-token (JWT custom)
 	try {
 		const token = request.cookies.get('auth-token')?.value;
-		if (!token)
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-		const user = verifyToken(token);
-		if (!user)
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+		if (token) {
+			const jwt = await import('jsonwebtoken');
+			const decoded = jwt.default.verify(token, process.env.JWT_SECRET!) as any;
+			if (decoded?.id) {
+				return await prisma.user.findUnique({ where: { id: decoded.id } });
+			}
+		}
+	} catch {}
+	return null;
+}
+
+// GET - Obtener carrito
+export async function GET(request: NextRequest) {
+	try {
+		const user = await getAuthUser(request);
+		if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
 		const cartItems = await prisma.cartItem.findMany({
 			where: { userId: user.id },
@@ -19,45 +37,25 @@ export async function GET(request: NextRequest) {
 		});
 		return NextResponse.json(cartItems);
 	} catch (error) {
-		return NextResponse.json(
-			{ error: 'Error al obtener carrito' },
-			{ status: 500 },
-		);
+		return NextResponse.json({ error: 'Error al obtener carrito' }, { status: 500 });
 	}
 }
 
-// Agregar producto al carrito
+// POST - Agregar producto al carrito
 export async function POST(request: NextRequest) {
 	try {
-		const token = request.cookies.get('auth-token')?.value;
-		if (!token)
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-		const user = verifyToken(token);
-		if (!user)
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+		const user = await getAuthUser(request);
+		if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
 		const { productId, quantity } = await request.json();
 		if (!productId || typeof quantity !== 'number') {
 			return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
 		}
 
-		// Validar que el usuario existe en la base de datos
-		console.log('user.id del token:', user.id);
-		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-		console.log('dbUser encontrado:', dbUser);
-		if (!dbUser) {
-			return NextResponse.json(
-				{
-					error:
-						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
-				},
-				{ status: 400 },
-			);
-		}
-
-		// Si ya existe, suma la cantidad
 		const existing = await prisma.cartItem.findFirst({
 			where: { userId: user.id, productId },
 		});
+
 		let cartItem;
 		if (existing) {
 			cartItem = await prisma.cartItem.update({
@@ -71,37 +69,19 @@ export async function POST(request: NextRequest) {
 		}
 		return NextResponse.json(cartItem);
 	} catch (error) {
-		return NextResponse.json(
-			{ error: 'Error al agregar al carrito' },
-			{ status: 500 },
-		);
+		return NextResponse.json({ error: 'Error al agregar al carrito' }, { status: 500 });
 	}
 }
 
-// Actualizar cantidad de un producto
+// PUT - Actualizar cantidad
 export async function PUT(request: NextRequest) {
 	try {
-		const token = request.cookies.get('auth-token')?.value;
-		if (!token)
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-		const user = verifyToken(token);
-		if (!user)
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+		const user = await getAuthUser(request);
+		if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
 		const { productId, quantity } = await request.json();
 		if (!productId || typeof quantity !== 'number') {
 			return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 });
-		}
-
-		// Validar que el usuario existe en la base de datos
-		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-		if (!dbUser) {
-			return NextResponse.json(
-				{
-					error:
-						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
-				},
-				{ status: 400 },
-			);
 		}
 
 		const cartItem = await prisma.cartItem.updateMany({
@@ -110,50 +90,27 @@ export async function PUT(request: NextRequest) {
 		});
 		return NextResponse.json(cartItem);
 	} catch (error) {
-		return NextResponse.json(
-			{ error: 'Error al actualizar cantidad' },
-			{ status: 500 },
-		);
+		return NextResponse.json({ error: 'Error al actualizar cantidad' }, { status: 500 });
 	}
 }
 
-// Eliminar producto del carrito o limpiar carrito
+// DELETE - Eliminar producto o limpiar carrito
 export async function DELETE(request: NextRequest) {
 	try {
-		const token = request.cookies.get('auth-token')?.value;
-		if (!token)
-			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-		const user = verifyToken(token);
-		if (!user)
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+		const user = await getAuthUser(request);
+		if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
 		const { productId } = await request.json();
 
-		// Validar que el usuario existe en la base de datos
-		const dbUser = await prisma.user.findUnique({ where: { id: user.id } });
-		if (!dbUser) {
-			return NextResponse.json(
-				{
-					error:
-						'El usuario autenticado no existe. Por favor, cierra sesión y vuelve a iniciar sesión.',
-				},
-				{ status: 400 },
-			);
-		}
-
 		if (productId) {
-			// Eliminar solo ese producto
 			await prisma.cartItem.deleteMany({
 				where: { userId: user.id, productId },
 			});
 		} else {
-			// Limpiar todo el carrito
 			await prisma.cartItem.deleteMany({ where: { userId: user.id } });
 		}
 		return NextResponse.json({ success: true });
 	} catch (error) {
-		return NextResponse.json(
-			{ error: 'Error al eliminar del carrito' },
-			{ status: 500 },
-		);
+		return NextResponse.json({ error: 'Error al eliminar del carrito' }, { status: 500 });
 	}
 }

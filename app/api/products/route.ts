@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { exigirAdmin } from '@/lib/solo-admin';
 
 // GET - Obtener productos
 export async function GET(request: NextRequest) {
@@ -60,38 +61,61 @@ export async function GET(request: NextRequest) {
 			where.featured = true;
 		}
 
+		/*
+		  Los productos ocultos no salen en la tienda.
+
+		  El panel puede pedirlos con `?incluirOcultos=1` (es la única forma de
+		  poder volver a mostrarlos). Esa vista NO abre un agujero: solo cambia
+		  qué filas se listan, y la ficha individual sigue devolviendo 404 para
+		  un producto oculto a quien no sea administradora.
+		*/
+		const incluirOcultos = searchParams.get('incluirOcultos') === '1';
+		if (!incluirOcultos) {
+			where.visible = true;
+		}
+
 		if (isNew) {
 			where.isNew = true;
 		}
 
-		// Construir ordenamiento
-		const orderBy: any = {};
-		orderBy[sortBy] = sortOrder;
+		/*
+		 * Ordenamiento con lista blanca.
+		 *
+		 * Antes era `orderBy[sortBy] = sortOrder` con lo que viniera en la
+		 * URL: cualquier campo inexistente hacía que Prisma tirara y la API
+		 * devolviera 500. Pasó de verdad — un componente pedía
+		 * `?sortBy=totalReviews` después de que las reseñas salieron de la
+		 * base, y la ficha de producto registraba un 500 en cada carga.
+		 * Siendo un endpoint público, cualquiera podía provocarlo a mano.
+		 */
+		const CAMPOS_ORDENABLES = [
+			'createdAt',
+			'updatedAt',
+			'price',
+			'name',
+			'stock',
+			'discount',
+		] as const;
 
-		// Obtener productos con reseñas
+		const campo = (CAMPOS_ORDENABLES as readonly string[]).includes(sortBy)
+			? sortBy
+			: 'createdAt';
+		const sentido = sortOrder === 'asc' ? 'asc' : 'desc';
+
+		const orderBy: any = { [campo]: sentido };
+
+		// Las reseñas se quitaron de la tienda (era una función que no se usaba
+		// y complicaba la app). Con eso desapareció también el `include` de
+		// reviews, que traía una fila por reseña de cada producto en cada
+		// llamada al catálogo.
 		const products = await prisma.product.findMany({
 			where,
 			orderBy,
 			take: limit,
 			skip: offset,
-			include: {
-				reviews: {
-					select: {
-						rating: true,
-					},
-				},
-			},
 		});
 
-		// Calcular ratings y conteos
-		const productsWithRatings = products.map((product) => {
-			const totalReviews = product.reviews.length;
-			const averageRating =
-				totalReviews > 0
-					? product.reviews.reduce((sum, review) => sum + review.rating, 0) /
-					  totalReviews
-					: 0;
-
+		const productosListos = products.map((product) => {
 			return {
 				id: product.id,
 				name: product.name,
@@ -104,26 +128,71 @@ export async function GET(request: NextRequest) {
 				sku: product.sku,
 				featured: product.featured,
 				isNew: product.isNew,
+				visible: product.visible,
 				discount: product.discount,
-				averageRating: Math.round(averageRating * 10) / 10,
-				totalReviews,
 				createdAt: product.createdAt,
 				updatedAt: product.updatedAt,
 			};
 		});
 
-		return NextResponse.json(productsWithRatings);
-	} catch (error) {
+		return NextResponse.json(productosListos, {
+			headers: {
+				/*
+				 * Vercel consume `s-maxage` y `stale-while-revalidate` en el edge y
+				 * al navegador le llega solo `public`, que por heurística puede
+				 * cachearse un rato largo: un cliente que vuelve podía ver stock o
+				 * precios viejos. Verificado en producción (llegaba `cache-control:
+				 * public` pelado).
+				 *
+				 * `max-age=0, must-revalidate` obliga al navegador a preguntar
+				 * siempre, mientras el edge sirve su copia 1 min y hasta 5
+				 * revalidando en segundo plano.
+				 *
+				 * Estuvo en 5 min / 1 h y era demasiado: al corregir una
+				 * descripción en la base, el edge seguía sirviendo la vieja
+				 * (verificado, `x-vercel-cache: HIT` con el texto anterior).
+				 * Un minuto ya le ahorra la base a casi todo el tráfico.
+				 *
+				 * `stale-while-revalidate` largo (1 h) a propósito: desde que
+				 * se quitó el cron de keepalive, la base de Neon duerme cuando
+				 * no hay nadie. Con esto, mientras despierta —o si tiene un
+				 * mal momento— el edge sigue sirviendo el catálogo en vez de
+				 * mostrar la tienda vacía. Revalida en segundo plano.
+				 *
+				 * Para el stock no hay riesgo en ningún caso: el checkout
+				 * relee stock y precios de la base en `calcularTotales`, así
+				 * que un catálogo algo viejo no puede vender de más.
+				 */
+				'Cache-Control':
+					'public, max-age=0, must-revalidate, s-maxage=60, stale-while-revalidate=3600',
+			},
+		});
+	} catch (error: any) {
 		console.error('Error fetching products:', error);
+		// Igual que en la ficha: un fallo de base no es "no hay productos".
+		const mensaje = String(error?.message || '');
+		const baseCaida =
+			mensaje.includes('compute time quota') ||
+			mensaje.includes("Can't reach database") ||
+			error?.name === 'PrismaClientInitializationError';
 		return NextResponse.json(
-			{ error: 'Error al obtener productos' },
-			{ status: 500 },
+			{
+				error: baseCaida
+					? 'La tienda está con un problema técnico. Vuelve en un momento.'
+					: 'Error al obtener productos',
+				baseCaida,
+			},
+			{ status: baseCaida ? 503 : 500 },
 		);
 	}
 }
 
 // POST - Crear nuevo producto
 export async function POST(request: NextRequest) {
+	// Crear productos es solo para la administración.
+	const noPuede = await exigirAdmin(request);
+	if (noPuede) return noPuede;
+
 	try {
 		const body = await request.json();
 		const {

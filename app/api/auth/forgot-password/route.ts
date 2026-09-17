@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { resend } from '@/lib/resend';
+import { EMAIL_PUBLICO, correoListo, motivoCorreoNoListo, remitente } from '@/lib/contacto';
 import crypto from 'crypto';
 import { rateLimit } from '@/lib/rate-limit';
 
@@ -47,10 +48,17 @@ export async function POST(request: NextRequest) {
 		});
 		// Enviar email
 		const resetUrl = `${BASE_URL}/reset-password?token=${token}`;
+		if (!correoListo() || !resend) {
+			console.warn(`[forgot-password] No pude enviar el correo: ${motivoCorreoNoListo()}`);
+			return NextResponse.json({
+				message: 'Si el email existe, se enviará un enlace de recuperación.',
+			});
+		}
 		await resend.emails.send({
-			from: 'Mautik <no-reply@mautik.com>',
+			from: remitente('no-reply')!,
+			replyTo: EMAIL_PUBLICO,
 			to: email,
-			subject: 'Recupera tu contraseña',
+			subject: 'Recupera tu contraseña de Mautik',
 			html: `<p>Haz clic en el siguiente enlace para restablecer tu contraseña:</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>Este enlace expirará en 30 minutos.</p>`,
 		});
 		return NextResponse.json({

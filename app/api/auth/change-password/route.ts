@@ -1,21 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import bcrypt from 'bcryptjs';
-import { verifyToken } from '@/lib/auth';
+import { getAuthUser, verifyToken } from '@/lib/auth';
 
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
+/**
+ * Cambio de contraseña desde el perfil.
+ *
+ * ⚠️ Esto NUNCA funcionó. La ruta exigía una cabecera `Authorization: Bearer`
+ * y la página del perfil solo mandaba `Content-Type`, así que cada intento
+ * moría en 401 "Token de autenticación requerido" antes de mirar siquiera la
+ * contraseña. La app entera se autentica con la sesión de NextAuth o con la
+ * cookie `auth-token`; acá se hace igual, y el Bearer se sigue aceptando por
+ * si algo viejo lo manda.
+ */
 export async function POST(request: NextRequest) {
 	try {
+		let usuarioId: string | null = null;
+
 		const token = request.headers.get('authorization')?.replace('Bearer ', '');
-		if (!token) {
+		if (token) {
+			const decoded = verifyToken(token);
+			if (!decoded) {
+				return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
+			}
+			usuarioId = decoded.id;
+		} else {
+			const usuario = await getAuthUser(request);
+			usuarioId = usuario?.id ?? null;
+		}
+
+		if (!usuarioId) {
 			return NextResponse.json(
-				{ error: 'Token de autenticación requerido' },
+				{ error: 'Tienes que iniciar sesión.' },
 				{ status: 401 },
 			);
 		}
-		const decoded = verifyToken(token);
-		if (!decoded) {
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
-		}
+
 		const { currentPassword, newPassword } = await request.json();
 		if (!currentPassword || !newPassword) {
 			return NextResponse.json(
@@ -29,11 +52,26 @@ export async function POST(request: NextRequest) {
 				{ status: 400 },
 			);
 		}
-		const user = await prisma.user.findUnique({ where: { id: decoded.id } });
+		const user = await prisma.user.findUnique({ where: { id: usuarioId } });
 		if (!user) {
 			return NextResponse.json(
 				{ error: 'Usuario no encontrado' },
 				{ status: 404 },
+			);
+		}
+		/*
+		  Quien entró con Google no tiene contraseña guardada. Sin este aviso,
+		  `bcrypt.compare` contra una cadena vacía devolvía false y el mensaje
+		  era "Contraseña actual incorrecta": imposible de entender cuando
+		  nunca hubo una contraseña que poner.
+		*/
+		if (!user.password) {
+			return NextResponse.json(
+				{
+					error:
+						'Tu cuenta entra con Google, así que no tiene contraseña que cambiar.',
+				},
+				{ status: 400 },
 			);
 		}
 		const isValid = await bcrypt.compare(currentPassword, user.password || '');

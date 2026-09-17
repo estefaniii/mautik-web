@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { sitioUrl } from '@/lib/site-url';
 
 export default function robots(): MetadataRoute.Robots {
 	return {
@@ -13,10 +14,10 @@ export default function robots(): MetadataRoute.Robots {
 				'/checkout/',
 				'/profile/',
 				'/orders/',
-				'/favorites/',
 				'/cart/',
 			],
 		},
-		sitemap: 'https://mautik.com/sitemap.xml',
+		sitemap: `${sitioUrl()}/sitemap.xml`,
+		host: sitioUrl(),
 	};
 }

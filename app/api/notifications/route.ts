@@ -1,30 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { NotificationService } from '@/lib/notifications';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET!;
-
-// Función para verificar el token JWT desde las cookies
-const verifyTokenFromCookies = (request: NextRequest) => {
-	try {
-		const authToken = request.cookies.get('auth-token')?.value;
-
-		if (!authToken) {
-			return null;
-		}
-
-		const decoded = jwt.verify(authToken, JWT_SECRET) as any;
-		return decoded;
-	} catch (error) {
-		console.error('Token verification error:', error);
-		return null;
-	}
-};
+import { getAuthUser } from '@/lib/auth';
 
 // GET - Obtener notificaciones del usuario
 export async function GET(request: NextRequest) {
 	try {
-		const user = verifyTokenFromCookies(request);
+		const user = await getAuthUser(request);
 
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -69,7 +50,7 @@ export async function GET(request: NextRequest) {
 // POST - Marcar notificación como leída
 export async function POST(request: NextRequest) {
 	try {
-		const user = verifyTokenFromCookies(request);
+		const user = await getAuthUser(request);
 
 		if (!user) {
 			return NextResponse.json({ error: 'No autorizado' }, { status: 401 });

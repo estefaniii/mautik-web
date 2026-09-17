@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import { NextRequest } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { getServerSession } from 'next-auth';
 
 const prisma = new PrismaClient();
 
@@ -45,6 +46,35 @@ export async function verifyAuth(
 	request: NextRequest,
 ): Promise<UserPayload | null> {
 	return getUserFromRequest(request);
+}
+
+/**
+ * Obtiene el usuario autenticado desde NextAuth session o cookie auth-token.
+ * Usar en todos los API routes que requieran autenticación.
+ */
+export async function getAuthUser(request: NextRequest) {
+	// 1. NextAuth session (Google OAuth o credentials vía NextAuth)
+	try {
+		const { authOptions } = await import('@/lib/auth-config');
+		const session = await getServerSession(authOptions);
+		if (session?.user?.email) {
+			const user = await prisma.user.findUnique({ where: { email: session.user.email } });
+			if (user) return user;
+		}
+	} catch {}
+
+	// 2. Fallback: cookie auth-token (login custom con JWT)
+	try {
+		const token = request.cookies.get('auth-token')?.value;
+		if (token) {
+			const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
+			if (decoded?.id) {
+				return await prisma.user.findUnique({ where: { id: decoded.id } });
+			}
+		}
+	} catch {}
+
+	return null;
 }
 
 export async function authenticateUser(email: string, password: string) {

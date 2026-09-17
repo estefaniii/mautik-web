@@ -14,7 +14,6 @@ if (process.env.NODE_ENV === 'production') {
 export interface NotificationData {
 	orderId?: string;
 	productId?: string;
-	reviewId?: string;
 	status?: string;
 	amount?: number;
 	[key: string]: any;
@@ -263,32 +262,6 @@ export class NotificationService {
 			title: 'Perfil Actualizado',
 			message: 'Tu perfil ha sido actualizado exitosamente',
 		});
-	}
-
-	// Notificaciones de reseñas (para admin)
-	static async notifyNewReview(
-		reviewId: string,
-		productName: string,
-		rating: number,
-	) {
-		const admins = await prisma.user.findMany({
-			where: { isAdmin: true },
-			select: { id: true },
-		});
-
-		const notifications = [];
-		for (const admin of admins) {
-			const notification = await this.create({
-				userId: admin.id,
-				type: 'user',
-				title: 'Nueva Reseña',
-				message: `Nueva reseña de ${rating} estrellas para "${productName}"`,
-				data: { reviewId, rating, productName },
-			});
-			notifications.push(notification);
-		}
-
-		return notifications;
 	}
 
 	// Notificaciones del sistema

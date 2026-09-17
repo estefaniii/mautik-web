@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { v2 as cloudinary } from 'cloudinary';
+import { getAuthUser } from '@/lib/auth';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/db';
 
@@ -35,20 +36,41 @@ const verifyTokenFromCookies = (request: NextRequest) => {
 };
 
 export async function POST(request: NextRequest) {
-	try {
-		// Verificar autenticación usando JWT desde cookies
-		const user = verifyTokenFromCookies(request);
-		console.log('User extraído del token:', user);
+	/*
+	  Esta ruta la usan DOS cosas distintas y eso traía un error feo:
+	  `components/profile-avatar.tsx` (la clienta cambia su foto de perfil) y
+	  `components/image-upload.tsx` (la administración sube la foto de un
+	  producto). La ruta, sin distinguir, SIEMPRE terminaba escribiendo la URL
+	  subida en `user.avatar`. O sea: cada foto de producto que Estéfani subía
+	  desde el panel le reemplazaba su propia foto de perfil por la foto del
+	  producto.
 
-		if (!user) {
-			return NextResponse.json(
-				{ error: 'No autorizado. Debes iniciar sesión para subir archivos.' },
-				{ status: 401 },
-			);
-		}
+	  Ahora el llamador dice para qué es (`proposito`):
+	    · avatar   -> cualquiera con sesión; actualiza user.avatar
+	    · producto -> solo administración; NO toca el avatar
+
+	  Además la comprobación de sesión pasó a `getAuthUser`, que entiende tanto
+	  la sesión de NextAuth (Google) como la cookie propia. Antes solo miraba la
+	  cookie, así que al entrar con Google la subida fallaba con "No autorizado"
+	  en cuanto esa cookie vencía.
+	*/
+	const user = await getAuthUser(request);
+	if (!user) {
+		return NextResponse.json(
+			{ error: 'No autorizado. Debes iniciar sesión para subir archivos.' },
+			{ status: 401 },
+		);
+	}
+
+	try {
 
 		const formData = await request.formData();
 		const file = formData.get('file') as File;
+		const proposito = String(formData.get('proposito') || 'avatar');
+
+		if (proposito === 'producto' && !user.isAdmin) {
+			return NextResponse.json({ error: 'No encontrado.' }, { status: 404 });
+		}
 		console.log(
 			'Archivo recibido:',
 			file ? { name: file.name, type: file.type, size: file.size } : null,
@@ -133,13 +155,11 @@ export async function POST(request: NextRequest) {
 		const result = await uploadPromise;
 		const imageUrl = (result as any).secure_url;
 
-		// Actualizar el avatar del usuario en la base de datos
-		console.log(
-			'Actualizando avatar para user.id:',
-			user.id,
-			'con url:',
-			imageUrl,
-		);
+		// Una foto de producto NO es la foto de perfil de nadie.
+		if (proposito !== 'avatar') {
+			return NextResponse.json({ success: true, url: imageUrl, imageUrl });
+		}
+
 		const updatedUser = await prisma.user.update({
 			where: { id: user.id },
 			data: { avatar: imageUrl },

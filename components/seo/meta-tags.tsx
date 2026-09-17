@@ -1,5 +1,24 @@
 import Head from 'next/head'
 
+/**
+ * ⚠️ ESTE COMPONENTE NO HACE NADA. No lo uses para SEO nuevo.
+ *
+ * Usa `next/head`, que es API del Pages Router. En el App Router (que es lo
+ * que usa este proyecto) `next/head` se ignora por completo: ni el <title>,
+ * ni las meta, ni el JSON-LD de acá llegan al HTML.
+ *
+ * Verificado en producción el 2026-09-09: la ficha de producto devolvía un
+ * solo bloque JSON-LD (el global del layout) y el <title> genérico del sitio,
+ * no el nombre del producto.
+ *
+ * Reemplazo correcto:
+ *   - metadata por página -> `generateMetadata` en un layout/página SERVIDOR
+ *     (ver app/product/[id]/layout.tsx)
+ *   - datos estructurados -> helpers de lib/seo/structured-data.ts
+ *
+ * Se deja en el repo solo para no romper las páginas que todavía lo importan.
+ * Cuando cada una tenga su `generateMetadata`, este archivo se borra.
+ */
 interface MetaTagsProps {
   title?: string
   description?: string

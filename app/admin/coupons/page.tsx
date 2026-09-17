@@ -65,7 +65,9 @@ export default function CouponsPage() {
       const response = await fetch('/api/coupons')
       if (response.ok) {
         const data = await response.json()
-        setCoupons(data)
+        // nunca asignar la respuesta cruda: si cambia de forma, el .map de
+        // abajo tumba la página entera
+        setCoupons(Array.isArray(data) ? data : (data?.coupons ?? data?.cupones ?? []))
       }
     } catch (error) {
       console.error('Error fetching coupons:', error)
@@ -379,7 +381,7 @@ export default function CouponsPage() {
                       {getStatusText(coupon)}
                     </Badge>
                   </CardTitle>
-                  <p className="text-sm text-gray-600 mt-1">
+                  <p className="text-sm text-gray-600 dark:text-purple-100/70 mt-1">
                     {coupon.description || 'Sin descripción'}
                   </p>
                 </div>
@@ -414,7 +416,7 @@ export default function CouponsPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-blue-600" />
+                  <Users className="h-4 w-4 text-purple-600" />
                   <span>{coupon.usedCount}/{coupon.usageLimit}</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -425,7 +427,7 @@ export default function CouponsPage() {
                 </div>
                 {(coupon.minPurchase ?? 0) > 0 && (
                   <div className="flex items-center gap-2">
-                    <DollarSign className="h-4 w-4 text-gray-600" />
+                    <DollarSign className="h-4 w-4 text-gray-600 dark:text-purple-100/70" />
                     <span>Mín: ${coupon.minPurchase}</span>
                   </div>
                 )}

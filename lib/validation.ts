@@ -101,19 +101,6 @@ export const productSchema = z.object({
 		.optional(),
 });
 
-export const reviewSchema = z.object({
-	rating: z
-		.number()
-		.min(1, 'La calificación debe ser al menos 1')
-		.max(5, 'La calificación no puede exceder 5'),
-
-	comment: z
-		.string()
-		.min(10, 'El comentario debe tener al menos 10 caracteres')
-		.max(500, 'El comentario no puede exceder 500 caracteres')
-		.regex(/^[^<>]*$/, 'El comentario no puede contener caracteres especiales'),
-});
-
 export const orderSchema = z.object({
 	items: z
 		.array(

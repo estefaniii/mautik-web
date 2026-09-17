@@ -144,16 +144,16 @@ export default function AdvancedFilters({
           </SheetContent>
         </Sheet>
 
-        <div className="text-sm text-gray-600">
+        <div className="text-sm text-gray-600 dark:text-purple-100/70">
           {filteredCount} de {totalProducts} productos
         </div>
       </div>
 
       {/* Filtros desktop */}
       <div className="hidden lg:block">
-        <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 p-6">
+        <div className="bg-white dark:bg-card rounded-lg border border-gray-200 dark:border-white/10 p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-purple-50">
               Filtros Avanzados
             </h3>
             {hasActiveFilters() && (
@@ -241,7 +241,7 @@ function FilterContent({
     <div className="space-y-6">
       {/* Categorías */}
       <div>
-        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+        <h4 className="font-medium text-gray-900 dark:text-purple-50 mb-3">
           Categorías
         </h4>
         <div className="space-y-2">
@@ -265,7 +265,7 @@ function FilterContent({
 
       {/* Rango de precio */}
       <div>
-        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+        <h4 className="font-medium text-gray-900 dark:text-purple-50 mb-3">
           Rango de Precio
         </h4>
         <div className="px-2">
@@ -277,7 +277,7 @@ function FilterContent({
             step={10}
             className="w-full"
           />
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-purple-100/70 mt-2">
             <span>${filters.priceRange[0]}</span>
             <span>${filters.priceRange[1]}</span>
           </div>
@@ -286,7 +286,7 @@ function FilterContent({
 
       {/* Rating mínimo */}
       <div>
-        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+        <h4 className="font-medium text-gray-900 dark:text-purple-50 mb-3">
           Rating Mínimo
         </h4>
         <div className="px-2">
@@ -298,7 +298,7 @@ function FilterContent({
             step={0.5}
             className="w-full"
           />
-          <div className="flex justify-between text-sm text-gray-600 mt-2">
+          <div className="flex justify-between text-sm text-gray-600 dark:text-purple-100/70 mt-2">
             <span>0</span>
             <span>{filters.rating}+ estrellas</span>
             <span>5</span>
@@ -308,7 +308,7 @@ function FilterContent({
 
       {/* Opciones adicionales */}
       <div>
-        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+        <h4 className="font-medium text-gray-900 dark:text-purple-50 mb-3">
           Opciones
         </h4>
         <div className="space-y-3">
@@ -347,7 +347,7 @@ function FilterContent({
 
       {/* Ordenamiento */}
       <div>
-        <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-3">
+        <h4 className="font-medium text-gray-900 dark:text-purple-50 mb-3">
           Ordenar por
         </h4>
         <div className="space-y-2">

@@ -1,8 +1,9 @@
 import { MetadataRoute } from 'next';
+import { sitioUrl } from '@/lib/site-url';
 import { prisma } from '@/lib/db';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-	const baseUrl = 'https://mautik.com';
+	const baseUrl = sitioUrl();
 
 	// Static pages
 	const staticPages = [

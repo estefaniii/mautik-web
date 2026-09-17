@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { comoLista } from "@/lib/lista"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
@@ -60,7 +61,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
         const response = await fetch('/api/products/categories')
         if (response.ok) {
           const data = await response.json()
-          setCategories(data)
+          setCategories(comoLista(data))
         }
       } catch (error) {
         console.error('Error fetching categories:', error)
@@ -180,7 +181,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
           <div className="space-y-6 mt-6">
             {/* Búsqueda por texto */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Buscar productos
               </label>
               <div className="relative">
@@ -196,7 +197,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
 
             {/* Categorías */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Categorías
               </label>
               <div className="space-y-2 max-h-40 overflow-y-auto">
@@ -215,7 +216,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
                     />
                     <label
                       htmlFor={category.name}
-                      className="text-sm text-gray-700 dark:text-gray-300 cursor-pointer flex-1"
+                      className="text-sm text-gray-700 dark:text-purple-100/80 cursor-pointer flex-1"
                     >
                       {category.name}
                     </label>
@@ -229,7 +230,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
 
             {/* Rango de precios */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Rango de precios: ${priceRange[0]} - ${priceRange[1]}
               </label>
               <Slider
@@ -248,7 +249,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
 
             {/* Calificación mínima */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Calificación mínima
               </label>
               <Select value={rating?.toString() || ''} onValueChange={(value) => setRating(value ? parseInt(value) : undefined)}>
@@ -266,7 +267,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
 
             {/* Ordenar por */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Ordenar por
               </label>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -286,7 +287,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
 
             {/* Filtros adicionales */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              <label className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                 Filtros adicionales
               </label>
               <div className="space-y-3">
@@ -298,7 +299,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
                       setFilters(prev => ({ ...prev, inStock: !!checked }))
                     }
                   />
-                  <label htmlFor="inStock" className="text-sm text-gray-700 dark:text-gray-300">
+                  <label htmlFor="inStock" className="text-sm text-gray-700 dark:text-purple-100/80">
                     Solo productos en stock
                   </label>
                 </div>
@@ -311,7 +312,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
                       setFilters(prev => ({ ...prev, onSale: !!checked }))
                     }
                   />
-                  <label htmlFor="onSale" className="text-sm text-gray-700 dark:text-gray-300">
+                  <label htmlFor="onSale" className="text-sm text-gray-700 dark:text-purple-100/80">
                     Solo productos en oferta
                   </label>
                 </div>
@@ -324,7 +325,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
                       setFilters(prev => ({ ...prev, newArrivals: !!checked }))
                     }
                   />
-                  <label htmlFor="newArrivals" className="text-sm text-gray-700 dark:text-gray-300">
+                  <label htmlFor="newArrivals" className="text-sm text-gray-700 dark:text-purple-100/80">
                     Solo nuevos productos
                   </label>
                 </div>
@@ -337,7 +338,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
                       setFilters(prev => ({ ...prev, featured: !!checked }))
                     }
                   />
-                  <label htmlFor="featured" className="text-sm text-gray-700 dark:text-gray-300">
+                  <label htmlFor="featured" className="text-sm text-gray-700 dark:text-purple-100/80">
                     Solo productos destacados
                   </label>
                 </div>
@@ -368,7 +369,7 @@ export default function AdvancedSearch({ onSearch, className }: AdvancedSearchPr
             {/* Filtros activos */}
             {hasActiveFilters && (
               <div className="pt-4 border-t">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-purple-100/80 mb-2">
                   Filtros activos:
                 </h4>
                 <div className="flex flex-wrap gap-2">

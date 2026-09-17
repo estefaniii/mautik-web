@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react"
 import type { ReactNode } from "react"
 import { useAuth } from "@/context/auth-context"
 
@@ -27,6 +27,27 @@ interface CartContextType {
   getCartTotal: () => number
   getCartSubtotal: () => number
   getCartDiscount: () => number
+  /*
+    Selección por artículo, al estilo Temu: el carrito guarda todo, pero la
+    clienta marca qué se lleva AHORA. Lo que queda sin marcar no se borra ni
+    se cobra: sigue ahí para la próxima.
+
+    La selección vive acá (y no solo en la página del carrito) porque el
+    checkout tiene que cobrar exactamente lo marcado. Si viviera en la
+    página, el checkout seguiría cobrando el carrito completo.
+  */
+  selectedIds: string[]
+  selectedItems: CartItem[]
+  isSelected: (id: string) => boolean
+  toggleSelected: (id: string) => void
+  setAllSelected: (todos: boolean) => void
+  /*
+    El cupón viaja del carrito al pago como CÓDIGO, nunca como monto. Cada
+    pantalla le pregunta al servidor cuánto descuenta sobre lo que hay en ese
+    momento, y el servidor lo vuelve a calcular al cobrar.
+  */
+  codigoCupon: string | null
+  guardarCupon: (codigo: string | null) => void
 }
 
 // Create the cart context
@@ -34,17 +55,66 @@ const CartContext = createContext<CartContextType | undefined>(undefined)
 
 // Create a provider component
 export function CartProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth()
+  const { user, isAuthenticated, isLoading: cargandoSesion } = useAuth()
   const [cart, setCart] = useState<CartItem[]>([])
+  // La mudanza del carrito de invitada se hace UNA vez por sesión. Ver abajo.
+  const yaMigrado = useRef(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [codigoCupon, setCodigoCupon] = useState<string | null>(null)
+
+  // El código se recuerda entre el carrito y el pago.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    setCodigoCupon(localStorage.getItem('mautik_cupon'))
+  }, [])
+
+  const guardarCupon = useCallback((codigo: string | null) => {
+    setCodigoCupon(codigo)
+    if (typeof window === 'undefined') return
+    if (codigo) localStorage.setItem('mautik_cupon', codigo)
+    else localStorage.removeItem('mautik_cupon')
+  }, [])
 
   // Helper to get the correct localStorage key
   const getCartKey = () => (user ? `mautik_cart_${user.id}` : "mautik_cart_temp")
 
-  // MIGRATION: Migrate guest cart to user cart on login
+  /*
+    Mudanza del carrito de invitada al de la cuenta, al iniciar sesión.
+
+    ⚠️ ACÁ ESTABA EL BUG DE LAS CANTIDADES QUE CRECÍAN SOLAS.
+
+    Estéfani tenía 3 productos y el carrito decía 11 artículos. En la base
+    estaban en 4, 4 y 3; por la mañana eran 2, 2 y 2. Subían solas, sin que
+    nadie agregara nada.
+
+    El circuito era este, y se cerraba en CADA carga de página:
+
+     1. Al cargar, la sesión todavía no está resuelta: `user` es null por un
+        instante, pero el carrito en memoria aún tiene los productos de la
+        vuelta anterior.
+     2. El efecto de guardar decía "si no hay usuario, guardá en
+        `mautik_cart_temp`" — y guardaba el carrito de la CLIENTA bajo la
+        llave de invitada.
+     3. Medio segundo después la sesión resuelve, este efecto ve esa llave,
+        cree que es un carrito de invitada y lo manda al servidor.
+     4. `POST /api/cart` no reemplaza: SUMA (`existing.quantity + quantity`).
+
+    Resultado: cada visita le sumaba una unidad a cada producto.
+
+    Tres cierres:
+     · Mientras la sesión está cargando no se guarda nada (abajo).
+     · La llave se borra ANTES de mandar nada, así dos ejecuciones
+       simultáneas no pueden mandar lo mismo dos veces.
+     · Y una bandera para que ocurra una sola vez por sesión.
+  */
   useEffect(() => {
     const migrateGuestCart = async () => {
-      if (user && typeof window !== 'undefined') {
+      if (user && !yaMigrado.current && typeof window !== 'undefined') {
+        yaMigrado.current = true
         const guestCartRaw = localStorage.getItem('mautik_cart_temp')
+        // Se reclama la llave de entrada: si otra ejecución entra al mismo
+        // tiempo, ya no la encuentra.
+        localStorage.removeItem('mautik_cart_temp')
         if (guestCartRaw) {
           try {
             const guestCart: CartItem[] = JSON.parse(guestCartRaw)
@@ -57,8 +127,6 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 body: JSON.stringify({ productId: item.id, quantity: item.quantity }),
               })
             }
-            // Limpiar carrito de invitado
-            localStorage.removeItem('mautik_cart_temp')
             // Refrescar carrito desde API
             const res = await fetch("/api/cart", { credentials: "include" })
             if (res.ok) {
@@ -129,16 +197,25 @@ export function CartProvider({ children }: { children: ReactNode }) {
         }
       }
     }
-    fetchCart()
-  }, [user])
+    // Si la sesión todavía se está resolviendo, esperar: si no, se carga el
+    // carrito de invitada y un instante después el de la cuenta, y por el
+    // medio se dispara el efecto de guardar.
+    if (!cargandoSesion) fetchCart()
+  }, [user, cargandoSesion])
 
-  // Guardar en localStorage solo si no hay usuario
+  /*
+    Guardar en el navegador SOLO si de verdad no hay nadie conectado.
+
+    `!user` no alcanza: mientras la sesión se resuelve también es null, y en
+    ese instante esto escribía el carrito de la clienta bajo la llave de
+    invitada. De ahí salía la suma infinita (ver el comentario de arriba).
+  */
   useEffect(() => {
+    if (cargandoSesion) return
     if (!user) {
-      const key = getCartKey()
-      localStorage.setItem(key, JSON.stringify(cart))
+      localStorage.setItem('mautik_cart_temp', JSON.stringify(cart))
     }
-  }, [cart, user])
+  }, [cart, user, cargandoSesion])
 
   // Add item to cart
   const addToCart = useCallback(async (item: CartItem) => {
@@ -326,6 +403,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
     }
   }, [cart.length])
 
+  /*
+    Todo lo que entra al carrito empieza marcado, que es lo que espera
+    cualquiera al agregar algo. Y si un artículo se va del carrito, su marca
+    se va con él (si no, quedaban ids fantasma y el contador mentía).
+  */
+  useEffect(() => {
+    setSelectedIds((previos) => {
+      const idsEnCarrito = cart.map((i) => String(i.id))
+      const vigentes = previos.filter((id) => idsEnCarrito.includes(id))
+      const nuevos = idsEnCarrito.filter((id) => !previos.includes(id))
+      const resultado = [...vigentes, ...nuevos]
+      // Evita un re-render en bucle cuando no cambió nada.
+      const igual =
+        resultado.length === previos.length &&
+        resultado.every((id, i) => id === previos[i])
+      return igual ? previos : resultado
+    })
+  }, [cart])
+
+  const isSelected = (id: string) => selectedIds.includes(String(id))
+
+  const toggleSelected = (id: string) =>
+    setSelectedIds((previos) =>
+      previos.includes(String(id))
+        ? previos.filter((x) => x !== String(id))
+        : [...previos, String(id)]
+    )
+
+  const setAllSelected = (todos: boolean) =>
+    setSelectedIds(todos ? cart.map((i) => String(i.id)) : [])
+
+  const selectedItems = cart.filter((i) => selectedIds.includes(String(i.id)))
+
   return (
     <CartContext.Provider
       value={{
@@ -337,6 +447,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
         getCartTotal,
         getCartSubtotal,
         getCartDiscount,
+        selectedIds,
+        selectedItems,
+        isSelected,
+        toggleSelected,
+        setAllSelected,
+        codigoCupon,
+        guardarCupon,
       }}
     >
       {children}

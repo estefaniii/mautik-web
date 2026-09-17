@@ -30,7 +30,7 @@ export default function AdminGuard({ children, fallback }: AdminGuardProps) {
         <div className="min-h-screen flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="h-8 w-8 animate-spin text-purple-600 mx-auto mb-4" />
-            <p className="text-gray-600">Verificando permisos...</p>
+            <p className="text-gray-600 dark:text-purple-100/70">Verificando permisos...</p>
           </div>
         </div>
       )
@@ -46,8 +46,8 @@ export default function AdminGuard({ children, fallback }: AdminGuardProps) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <Shield className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Acceso Denegado</h1>
-          <p className="text-gray-600 mb-4">No tienes permisos para acceder a esta página.</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-purple-50 mb-2">Acceso Denegado</h1>
+          <p className="text-gray-600 dark:text-purple-100/70 mb-4">No tienes permisos para acceder a esta página.</p>
           <button
             onClick={() => router.push("/")}
             className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"

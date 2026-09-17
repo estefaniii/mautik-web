@@ -1,19 +1,17 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, use } from "react"
 import { Button } from "@/components/ui/button"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
 import type { Product } from "@/types/product"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Heart, Share2, Star, Minus, Plus, ShoppingCart } from "lucide-react"
+import { Share2, Minus, Plus, ShoppingCart } from "lucide-react"
 import ProductCard from "@/components/product-card"
 import { useToast } from "@/hooks/use-toast"
 import { useCart } from "@/context/cart-context"
-import { useFavorites } from "@/context/favorites-context"
-import ProductReviews from "@/components/product-reviews"
+import { useAuth } from "@/context/auth-context"
 import { Badge } from "@/components/ui/badge"
-import MetaTags from "@/components/seo/meta-tags"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,9 +32,7 @@ interface ApiProduct {
   category: string
   images: string[]
   stock: number
-  averageRating?: number
-  totalReviews?: number
-  isFeatured?: boolean
+  featured?: boolean
   isNew?: boolean
   specifications?: Record<string, any>
   sku?: string
@@ -44,17 +40,15 @@ interface ApiProduct {
 }
 
 interface ProductPageProps {
-  params: {
-    id: string
-  }
+  params: Promise<{ id: string }>
 }
 
 export default function ProductPage({ params }: ProductPageProps) {
-  const productId = params.id
+  const { id: productId } = use(params)
   const router = useRouter()
   const { toast } = useToast()
   const { addToCart } = useCart()
-  const { isFavorite, toggleFavorite } = useFavorites()
+  const { user } = useAuth()
 
   const [quantity, setQuantity] = useState(1)
   const [selectedImage, setSelectedImage] = useState(0)
@@ -73,12 +67,10 @@ export default function ProductPage({ params }: ProductPageProps) {
       price: apiProduct.price,
       originalPrice: typeof apiProduct.originalPrice === 'number' ? apiProduct.originalPrice : apiProduct.price,
       description: typeof apiProduct.description === 'string' ? apiProduct.description : '',
-      images: Array.isArray(apiProduct.images) && apiProduct.images.length > 0 ? apiProduct.images : ['/placeholder.svg'],
+      images: Array.isArray(apiProduct.images) && apiProduct.images.length > 0 ? apiProduct.images : ['/placeholder.jpg'],
       category: typeof apiProduct.category === 'string' ? apiProduct.category : '',
       stock: typeof apiProduct.stock === 'number' ? apiProduct.stock : 0,
-      rating: typeof apiProduct.averageRating === 'number' ? apiProduct.averageRating : 4.5,
-      reviewCount: apiProduct.totalReviews || 0,
-      featured: apiProduct.isFeatured || false,
+      featured: apiProduct.featured || false,
       isNew: apiProduct.isNew || false,
       discount: apiProduct.discount || 0, // Usar el descuento manual configurado
       attributes: apiProduct.specifications ? Object.entries(apiProduct.specifications).map(([key, value]) => ({
@@ -139,6 +131,17 @@ export default function ProductPage({ params }: ProductPageProps) {
             setLoading(false)
             return
           }
+          /*
+            503 = la base no contesta. NO se limpia la referencia del producto
+            ni se dice "no encontrado": la pieza existe, lo que falla es la
+            tienda. Decirle a la clienta que el producto no existe cuando en
+            realidad es un problema nuestro la manda a buscar a otro lado.
+          */
+          if (response.status === 503) {
+            setError("La tienda está con un problema técnico. Vuelve a intentarlo en unos minutos.")
+            setLoading(false)
+            return
+          }
           throw new Error(`HTTP error! status: ${response.status}`)
         }
         
@@ -190,7 +193,18 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   // Polling para actualizar stock cada 20 segundos
   useEffect(() => {
+    /*
+      Sondeo de stock cada 2 minutos y SOLO con la pestaña a la vista.
+
+      Antes era cada 20 segundos y seguía corriendo con la pestaña de fondo:
+      una clienta que dejaba el carrito abierto toda la tarde generaba 180
+      consultas por hora, por cada producto del carrito. En el plan gratis de
+      Neon eso se paga en horas de base despierta, que es justo lo que agotó
+      la cuota y tumbó la tienda. Dos minutos alcanza de sobra para avisar que
+      algo se agotó.
+    */
     const interval = setInterval(async () => {
+      if (typeof document !== 'undefined' && document.hidden) return
       try {
         if (!product) return
         const res = await fetch(`/api/products/${product.id}`)
@@ -205,7 +219,7 @@ export default function ProductPage({ params }: ProductPageProps) {
           }
         }
       } catch {}
-    }, 20000)
+    }, 120000)
     return () => clearInterval(interval)
   }, [product?.id, product?.stock])
 
@@ -252,7 +266,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   if (loading) {
     return (
-      <div className="bg-gradient-to-b from-purple-50 to-white min-h-screen py-8">
+      <div className="bg-background min-h-screen py-8">
         <div className="container mx-auto px-4">
           <div className="bg-white rounded-lg shadow-md overflow-hidden">
             <div className="md:flex">
@@ -281,11 +295,11 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   if (error || !product) {
     return (
-      <div className="bg-gradient-to-b from-purple-50 to-white min-h-screen py-8">
+      <div className="bg-background min-h-screen py-8">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 mb-4">Producto no encontrado</h1>
-            <p className="text-gray-600 mb-6">El producto que buscas no existe o ha sido eliminado.</p>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-purple-50 mb-4">{error || "Producto no encontrado"}</h1>
+            <p className="text-gray-600 dark:text-purple-100/70 mb-6">El producto que buscas no existe o ha sido eliminado.</p>
             <Button onClick={() => router.push('/shop')}>
               Volver a la tienda
             </Button>
@@ -295,9 +309,24 @@ export default function ProductPage({ params }: ProductPageProps) {
     )
   }
 
-  const averageRating = product.rating || 0
-  const totalReviews = product.reviewCount || 0
+  const requireAuth = () => {
+    if (!user) {
+      toast({
+        title: "Inicia sesión",
+        description: "Debes iniciar sesión para continuar.",
+        variant: "destructive",
+      })
+      router.push(`/login?callbackUrl=/product/${product.id}`)
+      return false
+    }
+    return true
+  }
 
+  /*
+    Agregar al carrito no pide sesión: antes te sacaba a /login en el acto,
+    que es la forma más rápida de perder una venta. La sesión se pide en el
+    checkout, que es donde hace falta de verdad.
+  */
   const handleAddToCart = () => {
     addToCart({
       ...product,
@@ -312,11 +341,9 @@ export default function ProductPage({ params }: ProductPageProps) {
     })
   }
 
-  const handleToggleFavorite = () => {
-    toggleFavorite(product.id)
-  }
 
   const handleBuyNow = () => {
+    if (!requireAuth()) return
     addToCart({
       ...product,
       quantity,
@@ -338,22 +365,7 @@ export default function ProductPage({ params }: ProductPageProps) {
 
   return (
     <>
-      <MetaTags 
-        title={product.name}
-        description={product.description}
-        keywords={`${product.name}, ${product.category}, artesanía panameña, mautik`}
-        image={product.images[0]}
-        url={`/product/${product.id}`}
-        type="product"
-        product={{
-          name: product.name,
-          price: product.price.toString(),
-          currency: "USD",
-          availability: product.stock > 0 ? "in stock" : "out of stock",
-          category: product.category
-        }}
-      />
-      <div className="bg-gradient-to-b from-purple-50 to-white dark:from-gray-950 dark:to-gray-900 min-h-screen py-8">
+      <div className="bg-background min-h-screen py-8">
         <div className="container mx-auto px-4">
           {/* Breadcrumbs */}
           <Breadcrumb className="mb-6">
@@ -376,44 +388,77 @@ export default function ProductPage({ params }: ProductPageProps) {
             </BreadcrumbList>
           </Breadcrumb>
 
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-md overflow-hidden">
+          {/*
+            Misma superficie y mismas esquinas que las tarjetas de la tienda.
+            Antes era `bg-white dark:bg-card` con `rounded-lg`: en modo
+            oscuro quedaba de un gris azulado distinto al resto y las esquinas
+            no coincidian con nada mas de la app.
+          */}
+          <div className="overflow-hidden rounded-3xl bg-card shadow-[0_2px_16px_rgba(24,10,48,0.10)] ring-1 ring-purple-100/70 dark:ring-purple-300/15">
             <div className="md:flex">
               {/* Product Images */}
               <div className="md:w-1/2 p-6">
-                <div className="relative h-[400px] w-full mb-4 rounded-lg overflow-hidden">
+                {/*
+                  Proporcion 3:4, la misma en la que estan tomadas todas las
+                  fotos, con `object-cover`: asi la pieza llena el cuadro sin
+                  recortarse. Antes era una caja fija de 400px de alto con
+                  `object-contain`, o sea la pieza chica y flotando en el
+                  medio con franjas vacias a los lados.
+                */}
+                <div className="relative mb-4 aspect-[3/4] w-full overflow-hidden rounded-3xl bg-purple-50/60 dark:bg-purple-950/30">
                   <Image
-                    src={product.images[selectedImage] || "/placeholder.svg"}
-                    alt={product.name}
+                    src={product.images[selectedImage] || "/placeholder.jpg"}
+                    alt={
+                      product.images.length > 1
+                        ? `${product.name}, vista ${selectedImage + 1} de ${product.images.length}`
+                        : product.name
+                    }
                     fill
-                    className="object-contain"
+                    className="object-cover"
+                    // Sin `sizes` en una imagen con `fill`, Next se trae el
+                    // archivo más grande que tenga.
+                    sizes="(max-width: 768px) 100vw, 480px"
+                    priority
                   />
                   {product.isNew && (
-                    <Badge className="absolute top-4 left-4 bg-green-500 hover:bg-green-600">Nuevo</Badge>
+                    <span className="absolute left-4 top-4 rounded-full bg-white/95 px-3 py-1 text-xs font-semibold text-purple-900 shadow-sm">Nuevo</span>
                   )}
                   {(product.discount ?? 0) > 0 && (
-                    <Badge className="absolute top-4 right-4 bg-red-500 hover:bg-red-600">-{product.discount ?? 0}%</Badge>
+                    <span className="absolute right-4 top-4 rounded-full bg-red-500 px-3 py-1 text-xs font-semibold text-white shadow-sm">-{product.discount ?? 0}%</span>
                   )}
                 </div>
 
-                {/* Thumbnail Images */}
-                <div className="flex gap-2 overflow-x-auto pb-2">
-                  {product.images.map((image, index) => (
-                    <button
-                      key={index}
-                      onClick={() => setSelectedImage(index)}
-                      className={`relative h-20 w-20 rounded-md overflow-hidden border-2 ${
-                        selectedImage === index ? "border-purple-800" : "border-gray-200"
-                      }`}
-                    >
-                      <Image
-                        src={image || "/placeholder.svg"}
-                        alt={`${product.name} - vista ${index + 1}`}
-                        fill
-                        className="object-cover"
-                      />
-                    </button>
-                  ))}
-                </div>
+                {/*
+                  Miniaturas: solo si hay más de una foto. Con una sola se
+                  dibujaba igual un botón suelto debajo de la imagen, que no
+                  hacía nada y parecía un error.
+                */}
+                {product.images.length > 1 && (
+                  <div className="flex gap-2 overflow-x-auto pb-2" role="group" aria-label="Fotos del producto">
+                    {product.images.map((image, index) => (
+                      <button
+                        key={image || index}
+                        type="button"
+                        onClick={() => setSelectedImage(index)}
+                        aria-pressed={selectedImage === index}
+                        aria-label={`Ver foto ${index + 1} de ${product.images.length}`}
+                        className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-2xl border-2 transition-colors ${
+                          selectedImage === index
+                            ? "border-purple-800 dark:border-purple-400"
+                            : "border-gray-200 hover:border-purple-300 dark:border-white/10"
+                        }`}
+                      >
+                        <Image
+                          src={image || "/placeholder.jpg"}
+                          alt=""
+                          fill
+                          className="object-cover"
+                          sizes="80px"
+                        />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Product Details */}
@@ -421,16 +466,26 @@ export default function ProductPage({ params }: ProductPageProps) {
                 <div className="flex justify-between items-start">
                   <div>
                     <h1 className="font-display text-3xl font-bold text-purple-900 dark:text-purple-200 mb-2">{product.name}</h1>
+                    {/*
+                      Etiquetas en pastilla, las mismas que en la tarjeta de la
+                      tienda: la clienta viene de ahi y encuentra lo mismo.
+                    */}
+                    <div className="mb-1 flex flex-wrap gap-1.5">
+                      {product.category && (
+                        <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-900 dark:bg-purple-400/15 dark:text-purple-100">
+                          {product.category.charAt(0).toUpperCase() + product.category.slice(1).toLowerCase()}
+                        </span>
+                      )}
+                      {/* "Hecho a mano" salía en todos los productos sin
+                          distinguir ninguno; se quitó también acá para que las
+                          dos vistas digan lo mismo. Queda el origen, que sí
+                          aporta. */}
+                      <span className="rounded-full bg-purple-50 px-2.5 py-1 text-[11px] font-medium text-purple-900 dark:bg-purple-400/15 dark:text-purple-100">
+                        La Chorrera, Panamá
+                      </span>
+                    </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="icon" 
-                      className={`rounded-full ${isFavorite(product.id) ? "text-red-500 border-red-500" : "text-purple-800"}`}
-                      onClick={handleToggleFavorite}
-                    >
-                      <Heart className={`h-5 w-5 ${isFavorite(product.id) ? "fill-current" : ""}`} />
-                    </Button>
                     <Button variant="outline" size="icon" className="rounded-full">
                       <Share2 className="h-5 w-5 text-purple-800" />
                     </Button>
@@ -450,7 +505,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                       <span className="text-3xl font-bold text-purple-800">${product.price.toFixed(2)}</span>
                     )}
                   </div>
-                  <p className="text-gray-700 dark:text-gray-300 mb-6">{product.description}</p>
+                  <p className="text-gray-700 dark:text-purple-100/80 mb-6">{product.description}</p>
 
                   {/* Product Attributes */}
                   <div className="space-y-4 mb-6">
@@ -465,8 +520,8 @@ export default function ProductPage({ params }: ProductPageProps) {
 
                   {/* Quantity Selector */}
                   <div className="flex items-center gap-4 mb-6">
-                    <span className="font-medium text-gray-700 dark:text-gray-300">Cantidad:</span>
-                    <div className="flex items-center border border-gray-300 dark:border-gray-600 rounded-md">
+                    <span className="font-medium text-gray-700 dark:text-purple-100/80">Cantidad:</span>
+                    <div className="flex items-center border border-gray-300 dark:border-white/15 rounded-md">
                       <button
                         onClick={decrementQuantity}
                         className="px-3 py-2 text-purple-800 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-800/30 transition-colors"
@@ -474,7 +529,7 @@ export default function ProductPage({ params }: ProductPageProps) {
                       >
                         <Minus className="h-4 w-4" />
                       </button>
-                      <span className="px-4 py-2 border-x border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100">{quantity}</span>
+                      <span className="px-4 py-2 border-x border-gray-300 dark:border-white/15 text-gray-900 dark:text-purple-50">{quantity}</span>
                       <button
                         onClick={incrementQuantity}
                         className="px-3 py-2 text-purple-800 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-800/30 transition-colors"
@@ -483,10 +538,23 @@ export default function ProductPage({ params }: ProductPageProps) {
                         <Plus className="h-4 w-4" />
                       </button>
                     </div>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">{product.stock} disponibles</span>
-                    {quantity >= product.stock && product.stock > 0 && (
-                      <span className="ml-2 text-xs text-red-500">No puedes seleccionar más de lo disponible</span>
-                    )}
+                    <span className="text-sm text-gray-500 dark:text-purple-100/60">{product.stock} disponibles</span>
+                    {/*
+                      El aviso, solo cuando de verdad se toca el techo y hay
+                      más de una unidad. Antes la condicion era
+                      `quantity >= product.stock`, que con stock 1 se cumple en
+                      cuanto se abre la ficha: las piezas únicas salían con un
+                      texto rojo de error sin que nadie hubiera tocado nada.
+                    */}
+                    {product.stock === 1 ? (
+                      <span className="ml-2 rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-400/15 dark:text-purple-200">
+                        Pieza única
+                      </span>
+                    ) : quantity >= product.stock ? (
+                      <span className="ml-2 text-xs text-amber-600 dark:text-amber-400">
+                        Es todo lo que queda
+                      </span>
+                    ) : null}
                   </div>
 
                   {/* Mensaje de stock actualizado */}
@@ -515,14 +583,13 @@ export default function ProductPage({ params }: ProductPageProps) {
             {/* Product Tabs */}
             <div className="p-6 border-t border-gray-200">
               <Tabs defaultValue="description">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="description">Descripción</TabsTrigger>
                   <TabsTrigger value="details">Detalles</TabsTrigger>
-                  <TabsTrigger value="reviews">Reseñas</TabsTrigger>
                 </TabsList>
                 <TabsContent value="description" className="p-4">
                   <div className="prose max-w-none">
-                    <p className="text-gray-700 dark:text-gray-300">{product.description}</p>
+                    <p className="text-gray-700 dark:text-purple-100/80">{product.description}</p>
                   </div>
                 </TabsContent>
                 <TabsContent value="details" className="p-4">
@@ -530,20 +597,14 @@ export default function ProductPage({ params }: ProductPageProps) {
                     {product.details && product.details.length > 0 ? (
                       product.details.map((detail, index) => (
                         <div key={index} className="flex">
-                          <span className="w-32 font-medium text-gray-700 dark:text-gray-300">{detail.name}:</span>
-                          <span className="text-gray-600 dark:text-gray-400">{detail.value}</span>
+                          <span className="w-32 font-medium text-gray-700 dark:text-purple-100/80">{detail.name}:</span>
+                          <span className="text-gray-600 dark:text-purple-100/60">{detail.value}</span>
                         </div>
                       ))
                     ) : (
-                      <p className="text-gray-500 dark:text-gray-400 col-span-2">No hay detalles adicionales disponibles para este producto.</p>
+                      <p className="text-gray-500 dark:text-purple-100/60 col-span-2">No hay detalles adicionales disponibles para este producto.</p>
                     )}
                   </div>
-                </TabsContent>
-                <TabsContent value="reviews" className="p-4">
-                  <ProductReviews 
-                    productId={product.id || String(product.id)}
-                    productName={product.name}
-                  />
                 </TabsContent>
               </Tabs>
             </div>

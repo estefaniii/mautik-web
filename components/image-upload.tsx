@@ -45,6 +45,7 @@ export default function ImageUpload({ onImageUpload, className }: ImageUploadPro
     try {
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('proposito', 'producto')
 
       const response = await fetch('/api/upload', {
         method: 'POST',
@@ -144,13 +145,13 @@ export default function ImageUpload({ onImageUpload, className }: ImageUploadPro
           {isUploading ? (
             <>
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-              <p className="text-sm text-gray-600">Subiendo imagen...</p>
+              <p className="text-sm text-gray-600 dark:text-purple-100/70">Subiendo imagen...</p>
             </>
           ) : (
             <>
               <Upload className="h-8 w-8 text-gray-400" />
               <div>
-                <p className="text-sm font-medium text-gray-700">
+                <p className="text-sm font-medium text-gray-700 dark:text-purple-100/80">
                   Arrastra una imagen aquí o haz clic para seleccionar
                 </p>
                 <p className="text-xs text-gray-500 mt-1">

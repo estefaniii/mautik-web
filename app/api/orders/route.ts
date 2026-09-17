@@ -1,11 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { sendOrderConfirmationEmail } from '@/lib/resend';
+import { getAuthUser } from '@/lib/auth';
+import { calcularTotales } from '@/lib/payments/totales';
+
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
+	// Antes esto devolvía TODOS los pedidos de TODAS las clientas, con el objeto
+	// `user` completo adentro, a cualquiera que pidiera /api/orders sin sesión.
+	const usuario = await getAuthUser(request);
+	if (!usuario) {
+		return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+	}
+
 	try {
+		const esAdmin = (usuario as any).isAdmin === true || (usuario as any).role === 'admin';
+		/*
+		  `items` son filas de OrderItem: productId, cantidad y precio. Sin el
+		  producto adentro, la clienta veía su pedido como una lista de filas
+		  sin nombre y con la imagen de relleno, porque la página buscaba
+		  `item.name` y `item.image` y ninguno de los dos existe acá.
+		*/
 		const orders = await prisma.order.findMany({
-			include: { user: true, items: true },
+			where: esAdmin ? {} : { userId: usuario.id },
+			include: {
+				items: {
+					include: {
+						product: {
+							select: { id: true, name: true, images: true, category: true },
+						},
+					},
+				},
+			},
+			orderBy: { createdAt: 'desc' },
 		});
 		return NextResponse.json(orders);
 	} catch (error) {
@@ -17,105 +45,108 @@ export async function GET(request: NextRequest) {
 	}
 }
 
+/**
+ * Crea un pedido PENDIENTE.
+ *
+ * Dos cosas cambiaron acá y las dos importan:
+ *
+ * 1. El precio y el total salen de la base, no del navegador. Antes se
+ *    guardaba `data.totalAmount` y `item.price` tal cual venían en el JSON:
+ *    editando la petición se podía registrar un pedido de $30 por $0.01.
+ *
+ * 2. El pedido nace SIN pagar y sin descontar stock. Quien marca pagado y
+ *    descuenta es la ruta de captura de PayPal, después de confirmar contra
+ *    PayPal cuánto se cobró de verdad. Antes bastaba con mandar un
+ *    `paymentId` cualquiera para que el pedido quedara "pagado".
+ */
 export async function POST(request: NextRequest) {
+	const usuario = await getAuthUser(request);
+	if (!usuario) {
+		return NextResponse.json(
+			{ error: 'Tienes que iniciar sesión para hacer un pedido.' },
+			{ status: 401 },
+		);
+	}
+
 	try {
 		const data = await request.json();
-		if (!data.items || !Array.isArray(data.items) || data.items.length === 0) {
+
+		if (!Array.isArray(data.items) || data.items.length === 0) {
 			return NextResponse.json(
 				{ error: 'No hay productos en el pedido.' },
 				{ status: 400 },
 			);
 		}
-		// Validar stock de cada producto
-		const productUpdates: { id: string; newStock: number }[] = [];
-		const orderItems: Array<{ name: string; quantity: number; price: number }> =
-			[];
-
-		for (const item of data.items) {
-			const product = await prisma.product.findUnique({
-				where: { id: item.productId },
-			});
-			if (!product || product.stock < item.quantity) {
-				return NextResponse.json(
-					{ error: `Stock insuficiente para ${product?.name || 'producto'}` },
-					{ status: 400 },
-				);
-			}
-			productUpdates.push({
-				id: item.productId,
-				newStock: product.stock - item.quantity,
-			});
-			orderItems.push({
-				name: product.name,
-				quantity: item.quantity,
-				price: item.price,
-			});
+		// el flujo viejo de tarjeta guardada manda la dirección como `address`
+		const shippingAddress = data.shippingAddress ?? data.address;
+		if (!shippingAddress) {
+			return NextResponse.json(
+				{ error: 'Falta la dirección de envío.' },
+				{ status: 400 },
+			);
 		}
-		// Usar transacción para actualizar stock y crear pedido
-		const result = await prisma.$transaction(async (tx) => {
-			for (const update of productUpdates) {
-				await tx.product.update({
-					where: { id: update.id },
-					data: { stock: update.newStock },
-				});
-			}
-			const order = await tx.order.create({
-				data: {
-					userId: data.userId,
-					items: {
-						create: data.items.map((item: any) => ({
-							productId: item.productId,
-							quantity: item.quantity,
-							price: item.price,
-						})),
-					},
-					status: data.paymentId && data.paymentMethod ? 'paid' : 'pending',
-					isPaid: !!(data.paymentId && data.paymentMethod),
-					isDelivered: false,
-					totalAmount: data.totalAmount,
-					shippingAddress: data.shippingAddress,
-					paymentMethod: data.paymentMethod || null,
-					paymentId: data.paymentId || null,
-					paidAt: data.paidAt
-						? new Date(data.paidAt)
-						: data.paymentId && data.paymentMethod
-							? new Date()
-							: null,
+
+		// Relee precios, descuentos y stock desde la base y calcula el envío.
+		// Si un producto no alcanza, tira error con el nombre del producto.
+		const totales = await calcularTotales(
+			data.items.map((i: any) => ({
+				productId: i.productId,
+				quantity: i.quantity,
+			})),
+			{
+				direccion: shippingAddress,
+				metodoEnvio: data.metodoEnvio,
+				// El código, no el monto: el descuento lo calcula el servidor.
+				codigoCupon: typeof data.couponCode === 'string' ? data.couponCode : null,
+			},
+		);
+
+		const order = await prisma.order.create({
+			data: {
+				userId: usuario.id,
+				items: {
+					create: totales.items.map((i) => ({
+						productId: i.productId,
+						quantity: i.quantity,
+						price: i.price,
+					})),
 				},
-				include: { items: true, user: true },
-			});
-			return order;
+				status: 'pending',
+				isPaid: false,
+				isDelivered: false,
+				totalAmount: totales.total,
+				shippingAddress,
+				paymentMethod: data.paymentMethod || null,
+				// El cupón queda registrado en el pedido. El contador de usos NO
+				// se toca todavía: se suma cuando el pago se confirma, en la
+				// captura de PayPal. Un carrito abandonado no gasta el cupón.
+				couponCode: totales.cupon?.code ?? null,
+				discount: totales.descuento,
+			},
+			include: { items: true },
 		});
-
-		// Enviar email de confirmación
-		if (result.user && data.shippingAddress) {
-			try {
-				await sendOrderConfirmationEmail({
-					customerName: result.user.name || 'Cliente',
-					customerEmail: result.user.email,
-					orderItems,
-					shippingAddress: data.shippingAddress,
-					paymentMethod: data.paymentMethod
-						? { brand: data.paymentMethod, last4: '****' }
-						: { brand: 'N/A', last4: 'N/A' },
-					totalAmount: data.totalAmount,
-					orderId: result.id,
-				});
-			} catch (emailError) {
-				console.error('Error enviando email de confirmación:', emailError);
-				// No fallar el pedido si falla el email
-			}
-		}
 
 		return NextResponse.json({
-			message: 'Pedido creado exitosamente',
-			order: result,
+			message: 'Pedido creado',
+			order,
+			totales: {
+				subtotal: totales.subtotal,
+				descuento: totales.descuento,
+				cupon: totales.cupon,
+				envio: totales.envio,
+				total: totales.total,
+			},
 		});
-	} catch (error) {
+	} catch (error: any) {
+		// calcularTotales tira errores pensados para mostrarle a la clienta
+		// ("Solo quedan 2 unidades de ..."), así que se pasan tal cual.
+		const mensaje = error?.message || 'Error interno del servidor';
+		const esDeNegocio =
+			/carrito|stock|unidades|cantidad|producto/i.test(mensaje);
 		console.error('Error creando pedido:', error);
 		return NextResponse.json(
-			{ error: 'Error interno del servidor' },
-			{ status: 500 },
+			{ error: mensaje },
+			{ status: esDeNegocio ? 400 : 500 },
 		);
 	}
 }

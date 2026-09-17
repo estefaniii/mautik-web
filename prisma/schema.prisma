@@ -20,6 +20,13 @@ model Product {
   discount      Int?
   featured      Boolean            @default(false)
   isNew         Boolean            @default(false)
+  /*
+    Producto oculto: sigue en la base, con su historial de ventas intacto,
+    pero no aparece en la tienda. Es lo que hace falta cuando una pieza se
+    agota, se retira de temporada o se está rehaciendo la foto: borrarla
+    rompería los pedidos que ya la incluyen.
+  */
+  visible       Boolean            @default(true)
   originalPrice Float?
   sku           String             @unique
   cartItems     CartItem[]
@@ -50,9 +57,10 @@ model User {
   sessions       Session[]
   analytics      UserAnalytics[]
   wishlistItems  WishlistItem[]
-  welcomeSent    Boolean?        @default(false)
-  resetPasswordToken String?
+  welcomeSent          Boolean?          @default(false)
+  resetPasswordToken   String?
   resetPasswordExpires DateTime?
+  pushSubscriptions    PushSubscription[]
 }
 
 model Order {
@@ -68,6 +76,11 @@ model Order {
   paidAt          DateTime?
   paymentId       String?
   paymentMethod   String?
+  // Qué cupón se usó y cuánto descontó. Se guarda en el pedido para que el
+  // descuento quede en el historial de ventas y no haya que recalcularlo
+  // (el cupón puede cambiar o borrarse después).
+  couponCode      String?
+  discount        Float?          @default(0)
   user            User            @relation(fields: [userId], references: [id])
   analytics       OrderAnalytics?
   items           OrderItem[]
@@ -83,6 +96,10 @@ model OrderItem {
   product   Product @relation(fields: [productId], references: [id])
 }
 
+// SIN USO desde el 2026-09-10: las reseñas se quitaron de la tienda para
+// simplificarla. La tabla se deja (estaba vacía, 0 filas) porque borrarla
+// pide una migración destructiva sobre la base de producción y no hace falta.
+// Si algún día se quieren reseñas de nuevo, el modelo ya está.
 model Review {
   id        String   @id @default(uuid())
   productId String
@@ -219,6 +236,57 @@ model Address {
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model NewsletterSubscriber {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  isActive     Boolean  @default(true)
+  subscribedAt DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([email])
+  @@index([isActive])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid())
+  userId    String
+  endpoint  String
+  p256dh    String?
+  auth      String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, endpoint])
+  @@index([userId])
+  @@index([isActive])
+}
+
+model Coupon {
+  id                     String   @id @default(uuid())
+  code                   String   @unique
+  type                   String   // 'percentage' | 'fixed'
+  value                  Float
+  minPurchase            Float?
+  maxDiscount            Float?
+  usageLimit             Int      @default(1)
+  usedCount              Int      @default(0)
+  validFrom              DateTime @default(now())
+  validUntil             DateTime?
+  isActive               Boolean  @default(true)
+  applicableCategories   String[]
+  applicableProducts     String[]
+  description            String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([code])
+  @@index([isActive])
 }
 
 model Account {

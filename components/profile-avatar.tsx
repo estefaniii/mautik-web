@@ -4,9 +4,7 @@ import { useState, useRef, useCallback } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Camera, Upload, X, Image as ImageIcon, FileImage, Smartphone } from "lucide-react"
+import { Camera, Upload, Image as ImageIcon, FileImage } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { useAuth } from "@/context/auth-context"
 
@@ -94,6 +92,7 @@ export default function ProfileAvatar({
       // Crear FormData para enviar al servidor
       const formData = new FormData()
       formData.append('file', file)
+      formData.append('proposito', 'avatar')
 
       // Subir a Cloudinary
       const response = await fetch('/api/upload', {
@@ -151,18 +150,6 @@ export default function ProfileAvatar({
     }
   }
 
-  const handleGallerySelect = () => {
-    // En un entorno real, esto abriría la galería del dispositivo
-    // Por ahora, simulamos seleccionando un archivo
-    fileInputRef.current?.click()
-  }
-
-  const handleCameraCapture = () => {
-    // En un entorno real, esto abriría la cámara
-    // Por ahora, simulamos seleccionando un archivo
-    fileInputRef.current?.click()
-  }
-
   return (
     <div className="relative">
       {/* Avatar principal con drag & drop */}
@@ -173,41 +160,55 @@ export default function ProfileAvatar({
         onDrop={isEditing ? handleDrop : undefined}
         onClick={isEditing ? () => setShowDialog(true) : undefined}
       >
-        <Avatar className={`${sizeClasses[size]} border-4 border-purple-100 transition-all duration-300 ${
-          isDragOver ? 'border-purple-400 scale-105' : 'hover:border-purple-300'
-        }`}>
-          <AvatarImage src={currentImage ? `${currentImage}?t=${Date.now()}` : "/placeholder-user.jpg"} alt={userName} />
-          <AvatarFallback className="text-2xl bg-gradient-to-br from-purple-500 to-blue-500 text-white">
+        <Avatar
+          className={`${sizeClasses[size]} border-4 border-purple-100 transition-all duration-300 dark:border-white/15 ${
+            isDragOver ? 'scale-105 border-purple-400' : 'hover:border-purple-300'
+          }`}
+        >
+          {/*
+            El `?t=${Date.now()}` cambiaba en CADA render: el navegador no
+            podía guardar la foto en caché y la volvía a descargar una y otra
+            vez. Y con los avatares de Google, que ya llevan sus propios
+            parámetros en la dirección, colgarle otro puede devolver un error.
+          */}
+          <AvatarImage src={currentImage || "/placeholder-user.jpg"} alt={userName} />
+          <AvatarFallback className="bg-purple-500 text-2xl text-white">
             {getUserInitials(userName)}
           </AvatarFallback>
         </Avatar>
-        
-        {/* Overlay de drag & drop */}
+
+        {/* Al arrastrar una imagen encima */}
         {isDragOver && (
-          <div className="absolute inset-0 bg-purple-500/20 rounded-full flex items-center justify-center">
-            <Upload className="h-8 w-8 text-purple-600" />
+          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-purple-500/25">
+            <Upload className="h-8 w-8 text-white drop-shadow" />
           </div>
         )}
 
-        {/* Botón de cámara */}
+        {/*
+          UN solo botón de cámara.
+
+          Había dos: este y otro que aparecía al pasar el ratón, en el centro
+          del avatar. Se veían los dos a la vez y encima el de abajo iba en
+          `-bottom-2 -right-2`, sobresaliendo del círculo y chocando con lo que
+          tuviera al lado. Ahora va apoyado DENTRO del borde.
+        */}
         {isEditing && (
-          <Button 
-            size="sm" 
-            className="absolute -bottom-2 -right-2 h-8 w-8 rounded-full p-0 bg-purple-600 hover:bg-purple-700 shadow-lg"
+          <button
+            type="button"
+            aria-label="Cambiar foto de perfil"
             onClick={(e) => {
               e.stopPropagation()
               setShowDialog(true)
             }}
+            className="absolute bottom-0 right-0 grid h-8 w-8 place-items-center rounded-full border-2 border-card bg-purple-700 text-white shadow-md transition-colors hover:bg-purple-800"
           >
-            <Camera className="h-4 w-4" />
-          </Button>
+            <Camera className="h-3.5 w-3.5" />
+          </button>
         )}
 
-        {/* Indicador de hover */}
-        {isEditing && (
-          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 rounded-full transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-            <Camera className="h-6 w-6 text-white" />
-          </div>
+        {/* Al pasar el ratón, solo un velo: el icono ya está abajo. */}
+        {isEditing && !isDragOver && (
+          <div className="pointer-events-none absolute inset-0 rounded-full bg-black/0 transition-colors duration-300 group-hover:bg-black/10" />
         )}
       </div>
 
@@ -233,12 +234,20 @@ export default function ProfileAvatar({
             </DialogDescription>
           </DialogHeader>
 
-          {/* Área de drag & drop en el dialog */}
+          {/*
+            UN solo botón.
+
+            Había tres —"Seleccionar archivo", "Galería" y "Cámara"— y los tres
+            llamaban exactamente a la misma línea: `fileInputRef.current.click()`.
+            O sea, el mismo selector de archivos con tres nombres distintos. En
+            el teléfono ese selector ya ofrece por su cuenta cámara o galería,
+            así que las dos opciones de abajo no agregaban nada y sí confundían.
+          */}
           <div
-            className={`border-2 border-dashed rounded-lg p-8 text-center transition-all duration-300 ${
-              isDragOver 
-                ? 'border-purple-400 bg-purple-50' 
-                : 'border-gray-300 hover:border-purple-300'
+            className={`rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-300 ${
+              isDragOver
+                ? 'border-purple-400 bg-purple-50 dark:bg-white/10'
+                : 'border-gray-300 hover:border-purple-300 dark:border-white/15 dark:hover:border-purple-300/50'
             }`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
@@ -246,74 +255,52 @@ export default function ProfileAvatar({
           >
             {isDragOver ? (
               <div className="space-y-2">
-                <Upload className="h-8 w-8 mx-auto text-purple-600" />
-                <p className="text-purple-600 font-medium">Suelta la imagen aquí</p>
+                <Upload className="mx-auto h-8 w-8 text-purple-600 dark:text-purple-300" />
+                <p className="font-medium text-purple-700 dark:text-purple-200">
+                  Suelta la imagen aquí
+                </p>
               </div>
             ) : (
               <div className="space-y-4">
-                <ImageIcon className="h-12 w-12 mx-auto text-gray-400" />
+                <ImageIcon className="mx-auto h-11 w-11 text-gray-400 dark:text-purple-100/40" />
                 <div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    Arrastra una imagen aquí o
+                  <p className="mb-3 text-sm text-gray-600 dark:text-purple-100/70">
+                    Arrastra una foto aquí o
                   </p>
                   <Button
-                    variant="outline"
                     onClick={() => fileInputRef.current?.click()}
                     disabled={isUploading}
-                    className="w-full"
+                    className="w-full rounded-full bg-purple-700 hover:bg-purple-800"
                   >
-                    <FileImage className="h-4 w-4 mr-2" />
-                    Seleccionar archivo
+                    <FileImage className="mr-2 h-4 w-4" />
+                    Elegir una foto
                   </Button>
                 </div>
               </div>
             )}
           </div>
 
-          {/* Opciones adicionales */}
-          <div className="grid grid-cols-2 gap-3">
-            <Button
-              variant="outline"
-              onClick={handleGallerySelect}
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              <Smartphone className="h-4 w-4" />
-              Galería
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleCameraCapture}
-              disabled={isUploading}
-              className="flex items-center gap-2"
-            >
-              <Camera className="h-4 w-4" />
-              Cámara
-            </Button>
-          </div>
-
-          {/* Información de formato */}
-          <div className="text-xs text-gray-500 text-center">
-            Formatos soportados: JPG, PNG, GIF • Máximo 5MB
-          </div>
+          <p className="text-center text-xs text-gray-500 dark:text-purple-100/55">
+            JPG, PNG o GIF · hasta 5 MB
+          </p>
 
           <DialogFooter>
             <Button
               variant="outline"
+              className="rounded-full"
               onClick={() => setShowDialog(false)}
               disabled={isUploading}
             >
-              <X className="h-4 w-4 mr-2" />
               Cancelar
             </Button>
           </DialogFooter>
 
           {/* Indicador de carga */}
           {isUploading && (
-            <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-lg">
+            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-card/85">
               <div className="text-center">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-2"></div>
-                <p className="text-sm text-gray-600">Subiendo imagen...</p>
+                <p className="text-sm text-gray-600 dark:text-purple-100/70">Subiendo imagen...</p>
               </div>
             </div>
           )}

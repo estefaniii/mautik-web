@@ -1,14 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { coincide } from "@/lib/buscar"
 import ProductCard from "@/components/product-card"
+import CategoryChips from "@/components/category-chips"
 import type { Product } from "@/types/product"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useSearchParams, useRouter } from "next/navigation"
-import { FilterX, SlidersHorizontal } from "lucide-react"
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
-import ShopFilters from "@/components/shop-filters"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // Tipo para productos de la API
@@ -21,8 +20,6 @@ interface ApiProduct {
   category: string
   images: string[]
   stock: number
-  averageRating?: number
-  totalReviews?: number
   featured?: boolean
   isNew?: boolean
   discount?: number
@@ -51,11 +48,9 @@ export default function ShopPage() {
       price: apiProduct.price,
       originalPrice: apiProduct.originalPrice,
       description: apiProduct.description,
-      images: Array.isArray(apiProduct.images) && apiProduct.images.length > 0 ? apiProduct.images : ['/placeholder.svg'],
+      images: Array.isArray(apiProduct.images) && apiProduct.images.length > 0 ? apiProduct.images : ['/placeholder.jpg'],
       category: typeof apiProduct.category === 'string' ? apiProduct.category : '',
       stock: apiProduct.stock,
-      rating: apiProduct.averageRating || 4.5,
-      reviewCount: apiProduct.totalReviews || 0,
       featured: apiProduct.featured || false,
       isNew: apiProduct.isNew || false,
       discount: apiProduct.discount || 0,
@@ -71,7 +66,10 @@ export default function ShopPage() {
       try {
         setLoading(true)
         setError(null)
-        const response = await fetch('/api/products')
+        // El límite explícito importa: sin él la API devuelve 50 y la tienda
+        // se quedaba corta (58 productos en la base, 50 en pantalla; los chips
+        // de categoría, que sí piden más, delataban la diferencia).
+        const response = await fetch('/api/products?limit=500')
         if (response.ok) {
           const data = await response.json()
           const apiProducts: ApiProduct[] = Array.isArray(data) ? data : []
@@ -92,23 +90,26 @@ export default function ShopPage() {
     fetchProducts()
   }, [])
 
-  // Initialize filters from URL params
+  /*
+    Los filtros se derivan de la URL, TAMBIEN cuando el parametro desaparece.
+
+    Antes cada rama era `if (categoryParam) setSelectedCategories(...)`: si el
+    parametro venia, filtraba; si NO venia, no hacia nada y quedaba puesto el
+    filtro anterior. En la practica: tocabas "Aretes" (3 productos) y despues
+    "Todo", la URL se limpiaba, el chip seguia marcado en Aretes y la tienda
+    seguia mostrando 3 productos. Verificado en produccion.
+
+    Ahora la ausencia del parametro tambien es informacion: quiere decir
+    "sin filtro".
+  */
   useEffect(() => {
-    const categoryParam = searchParams.get("category")
-    const searchParam = searchParams.get("search")
-    const sort = searchParams.get("sort")
+    const categoria = searchParams.get("category")
+    const busqueda = searchParams.get("search")
+    const orden = searchParams.get("sort")
 
-    if (categoryParam) {
-      setSelectedCategories(categoryParam.split(","))
-    }
-
-    if (searchParam) {
-      setSearchText(searchParam)
-    }
-
-    if (sort) {
-      setSortOption(sort)
-    }
+    setSelectedCategories(categoria ? categoria.split(",") : [])
+    setSearchText(busqueda ?? "")
+    setSortOption(orden ?? "featured")
   }, [searchParams])
 
   // Apply filters when products or filters change
@@ -120,20 +121,22 @@ export default function ShopPage() {
   const applyFilters = () => {
     let result = [...allProducts]
 
-    // Filter by search text
+    // Búsqueda: sin tildes, sin importar el plural y con sinónimos.
+    // Antes era un `includes` pelado, así que "capibara" no encontraba
+    // "Capybara" ni "corazon" encontraba "corazón".
     if (searchText.trim()) {
-      const text = searchText.toLowerCase()
-      result = result.filter(
-        (product) =>
-          product.name.toLowerCase().includes(text) ||
-          product.description.toLowerCase().includes(text) ||
-          product.category.toLowerCase().includes(text)
-      )
+      result = result.filter((product) => coincide(product, searchText))
     }
 
-    // Filter by category
+    // Filter by category.
+    // La comparación va normalizada a minúsculas a propósito: en la base hay
+    // categorías guardadas con mayúscula y sin ella ("Pulseras" y "pulseras"),
+    // y comparando tal cual el filtro se comía la mitad de los productos.
     if (selectedCategories.length > 0) {
-      result = result.filter((product) => selectedCategories.includes(product.category))
+      const buscadas = selectedCategories.map((c) => c.toLowerCase().trim())
+      result = result.filter((product) =>
+        buscadas.includes((product.category || "").toLowerCase().trim())
+      )
     }
 
     // Apply sorting
@@ -162,18 +165,36 @@ export default function ShopPage() {
     setFilteredProducts(result)
   }
 
-  const handleCategoryChange = (category: string, checked: boolean) => {
-    if (checked) {
-      setSelectedCategories(prev => [...prev, category])
-    } else {
-      setSelectedCategories(prev => prev.filter(c => c !== category))
+  /*
+    La URL manda.
+
+    Los filtros vivian en dos lugares a la vez: los chips navegaban a
+    /shop?category=X y las casillas del panel cambiaban el estado de React sin
+    tocar la URL. Resultado: marcabas "Pulseras" en el panel y los chips
+    seguian mostrando "Todo" resaltado, porque cada uno miraba su propia
+    fuente. Ahora todo pasa por la URL y las dos cosas coinciden siempre.
+
+    De paso el filtro queda compartible: el enlace lleva la categoria puesta.
+  */
+  const escribirUrl = (cambios: Record<string, string | null>) => {
+    const params = new URLSearchParams(searchParams.toString())
+    for (const [clave, valor] of Object.entries(cambios)) {
+      if (valor === null || valor === "") params.delete(clave)
+      else params.set(clave, valor)
     }
+    const query = params.toString()
+    router.replace(query ? `/shop?${query}` : "/shop", { scroll: false })
+  }
+
+  const cambiarOrden = (valor: string) => {
+    // "featured" es el orden por defecto, no hace falta ensuciar la URL con el.
+    escribirUrl({ sort: valor === "featured" ? null : valor })
   }
 
   const resetFilters = () => {
-    setSelectedCategories([])
-    setSearchText("")
-    setSortOption("featured")
+    // category, search y sort se limpian al vaciar la URL; el efecto de arriba
+    // los vuelve a leer y los deja en su valor por defecto.
+    router.replace("/shop", { scroll: false })
   }
 
   if (loading) {
@@ -183,16 +204,16 @@ export default function ShopPage() {
           <Skeleton className="h-8 w-64 mb-4" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bg-white dark:bg-gray-900 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 h-[420px] animate-pulse flex flex-col justify-between p-4">
-              <div className="h-40 bg-gray-200 dark:bg-gray-800 rounded mb-4" />
-              <div className="h-6 bg-gray-200 dark:bg-gray-800 rounded w-2/3 mb-2" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2 mb-2" />
-              <div className="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/3 mb-4" />
+            <div key={i} className="bg-white dark:bg-card rounded-xl shadow-lg border border-gray-200 dark:border-white/10 h-[420px] animate-pulse flex flex-col justify-between p-4">
+              <div className="h-40 bg-gray-200 dark:bg-white/5 rounded mb-4" />
+              <div className="h-6 bg-gray-200 dark:bg-white/5 rounded w-2/3 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-white/5 rounded w-1/2 mb-2" />
+              <div className="h-4 bg-gray-200 dark:bg-white/5 rounded w-1/3 mb-4" />
               <div className="flex gap-2">
-                <div className="h-8 w-24 bg-gray-200 dark:bg-gray-800 rounded" />
-                <div className="h-8 w-24 bg-gray-200 dark:bg-gray-800 rounded" />
+                <div className="h-8 w-24 bg-gray-200 dark:bg-white/5 rounded" />
+                <div className="h-8 w-24 bg-gray-200 dark:bg-white/5 rounded" />
               </div>
             </div>
           ))}
@@ -205,10 +226,10 @@ export default function ShopPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-purple-50 mb-4">
             Error al cargar productos
           </h1>
-          <p className="text-gray-600 dark:text-gray-400 mb-4">{error}</p>
+          <p className="text-gray-600 dark:text-purple-100/60 mb-4">{error}</p>
           <Button onClick={() => window.location.reload()}>
             Intentar de nuevo
           </Button>
@@ -225,47 +246,42 @@ export default function ShopPage() {
         </div>
       )}
       <div className="container mx-auto px-4 py-8">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
-          <div className="lg:w-64 flex-shrink-0">
-            <div className="sticky top-8">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-                  Filtros
-                </h2>
-                {(selectedCategories.length > 0 || searchText) && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={resetFilters}
-                    className="text-red-600 hover:text-red-700"
-                  >
-                    <FilterX className="h-4 w-4 mr-1" />
-                    Limpiar
-                  </Button>
-                )}
-              </div>
-              <ShopFilters
-                selectedCategories={selectedCategories}
-                onCategoryChange={handleCategoryChange}
-                onReset={resetFilters}
-              />
-            </div>
-          </div>
-          {/* Main Content */}
-          <div className="flex-1">
+        {/*
+          Ya no hay panel de filtros fijo arriba de la tienda.
+
+          En pantallas chicas la columna del sidebar se apilaba ARRIBA de los
+          productos, así que lo primero que veía la clienta era una lista de
+          casillas ("Anillos (4)", "Aretes (3)"...) y tenía que hacer scroll
+          para llegar a la mercancía. Ahora las categorías viven en la fila de
+          chips (CategoryChips) y el resto de los filtros en el panel lateral
+          que se abre con el botón "Filtros", igual que en Pandora o Zara.
+        */}
+        {/*
+          Título, chips y grid comparten ancho y centro.
+
+          Antes el grid estaba centrado (`mx-auto`) pero el encabezado ocupaba
+          todo el contenedor: las tarjetas quedaban flotando en el medio y el
+          título pegado a la izquierda, como si fueran dos bloques distintos.
+        */}
+        {/*
+          Ancho amplio: con 4 columnas en escritorio ya no hace falta
+          estrangular el contenedor a max-w-4xl. Ese límite venía de cuando el
+          grid era de 2 columnas fijas y dejaba 300px muertos a la derecha.
+        */}
+        <div className="mx-auto max-w-7xl">
+          <div>
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 gap-4">
+            <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-purple-50 mb-2">
                   Tienda
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400">
+                <p className="text-gray-600 dark:text-purple-100/60">
                   {filteredProducts.length} productos encontrados
                 </p>
               </div>
               <div className="flex items-center gap-4">
-                <Select value={sortOption} onValueChange={setSortOption}>
+                <Select value={sortOption} onValueChange={cambiarOrden}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Ordenar por" />
                   </SelectTrigger>
@@ -278,39 +294,33 @@ export default function ShopPage() {
                     <SelectItem value="name-desc">Nombre: Z-A</SelectItem>
                   </SelectContent>
                 </Select>
-                {/* Mobile Filters */}
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="outline" className="lg:hidden">
-                      <SlidersHorizontal className="h-4 w-4 mr-2" />
-                      Filtros
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent side="left" className="w-[300px]">
-                    <div className="mt-6">
-                      <ShopFilters
-                        selectedCategories={selectedCategories}
-                        onCategoryChange={handleCategoryChange}
-                        onReset={resetFilters}
-                      />
-                    </div>
-                  </SheetContent>
-                </Sheet>
+                {/*
+                  Sin boton de "Filtros".
+
+                  Las categorias ya estan a un clic en la fila de chips y el
+                  orden en el desplegable de al lado, asi que el panel repetia
+                  lo mismo detras de un boton. Lo unico que tenia de propio era
+                  "solo productos en stock", y hoy los 58 productos tienen
+                  stock, o sea que no filtraba nada.
+                */}
               </div>
             </div>
+            {/* Filtros rápidos por categoría, siempre visibles */}
+            <CategoryChips activa={selectedCategories[0]?.toLowerCase() ?? null} />
+
             {/* Products Grid */}
             {filteredProducts.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-5 lg:grid-cols-4 lg:gap-6">
                 {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             ) : (
               <div className="text-center py-12">
-                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-purple-50 mb-2">
                   No se encontraron productos
                 </h3>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
+                <p className="text-gray-600 dark:text-purple-100/60 mb-4">
                   Intenta ajustar los filtros o buscar algo diferente.
                 </p>
                 <Button onClick={resetFilters}>

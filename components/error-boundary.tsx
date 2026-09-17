@@ -87,26 +87,26 @@ export class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800">
+        <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="max-w-lg w-full mx-auto text-center p-4">
-            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-white/5 rounded-2xl shadow-2xl p-8 border border-gray-200 dark:border-white/10">
               <div className="flex justify-center mb-6">
-                <div className="bg-gradient-to-br from-red-100 to-red-200 dark:from-red-900/30 dark:to-red-800/30 rounded-full p-4">
+                <div className="bg-red-100 dark:bg-red-900/30 rounded-full p-4">
                   <AlertTriangle className="h-10 w-10 text-red-600 dark:text-red-400" />
                 </div>
               </div>
               
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-purple-50 mb-4">
                 ¡Ups! Algo salió mal
               </h1>
               
-              <p className="text-gray-600 dark:text-gray-400 mb-6 text-lg">
+              <p className="text-gray-600 dark:text-purple-100/60 mb-6 text-lg">
                 Ha ocurrido un error inesperado. Nuestro equipo ha sido notificado y estamos trabajando para solucionarlo.
               </p>
 
               {this.state.errorId && process.env.NODE_ENV === 'production' && (
-                <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                  <p className="text-sm text-blue-700 dark:text-blue-300">
+                <div className="mb-6 p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+                  <p className="text-sm text-purple-700 dark:text-purple-300">
                     ID del error: <code className="font-mono">{this.state.errorId}</code>
                   </p>
                 </div>
@@ -114,11 +114,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
               {process.env.NODE_ENV === 'development' && this.state.error && (
                 <details className="mb-6 text-left">
-                  <summary className="cursor-pointer text-sm text-gray-500 dark:text-gray-400 mb-2 flex items-center gap-2">
+                  <summary className="cursor-pointer text-sm text-gray-500 dark:text-purple-100/60 mb-2 flex items-center gap-2">
                     <Bug size={16} />
                     Detalles del error (solo desarrollo)
                   </summary>
-                  <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 text-xs font-mono text-red-600 dark:text-red-400 overflow-auto max-h-40">
+                  <div className="bg-gray-100 dark:bg-white/10 rounded-lg p-4 text-xs font-mono text-red-600 dark:text-red-400 overflow-auto max-h-40">
                     <div className="mb-2">
                       <strong>Error:</strong> {this.state.error.message}
                     </div>
@@ -153,12 +153,12 @@ export class ErrorBoundary extends Component<Props, State> {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                <Link href="/" className="flex-1">
-                  <Button variant="ghost" className="w-full">
+                <Button variant="ghost" className="w-full" asChild>
+                  <Link href="/" className="flex-1">
                     <Home className="h-4 w-4 mr-2" />
                     Ir al inicio
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
                 
                 {this.state.errorId && process.env.NODE_ENV === 'production' && (
                   <Button
@@ -172,16 +172,16 @@ export class ErrorBoundary extends Component<Props, State> {
                 )}
               </div>
 
-              <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-                <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+              <div className="pt-4 border-t border-gray-200 dark:border-white/10">
+                <p className="text-sm text-gray-500 dark:text-purple-100/60 mb-2">
                   ¿Necesitas ayuda?
                 </p>
-                <Link href="/contact">
-                  <Button variant="ghost" size="sm" className="text-purple-600 dark:text-purple-400">
+                <Button variant="ghost" size="sm" className="text-purple-600 dark:text-purple-400" asChild>
+                  <Link href="/contact">
                     <Mail className="h-4 w-4 mr-2" />
                     Contactar soporte
-                  </Button>
-                </Link>
+                  </Link>
+                </Button>
               </div>
             </div>
           </div>
@@ -231,10 +231,10 @@ export function ErrorFallback({
       <div className="bg-red-100 dark:bg-red-900/20 rounded-full p-3 mb-4">
         <AlertTriangle className="h-12 w-12 text-red-500" />
       </div>
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-purple-50 mb-2">
         Algo salió mal
       </h2>
-      <p className="text-gray-600 dark:text-gray-400 mb-4">
+      <p className="text-gray-600 dark:text-purple-100/60 mb-4">
         {error.message || 'Ha ocurrido un error inesperado.'}
       </p>
       <Button onClick={resetErrorBoundary}>

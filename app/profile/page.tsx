@@ -1,1025 +1,886 @@
 "use client"
 
-import { useState, useEffect } from "react"
+/*
+  Página de cuenta, reescrita.
+
+  Lo que había era una plantilla con cuatro pestañas de colores distintos
+  (morado, verde esmeralda, rojo, gris), y por debajo casi nada funcionaba:
+
+   · Guardar el perfil devolvía 401 SIEMPRE. La ruta pedía la cookie
+     `auth-token`, que no tiene nadie porque se entra con NextAuth. Verificado
+     contra el sitio en vivo antes de tocar nada.
+   · Cambiar la contraseña devolvía 401 SIEMPRE, por lo mismo: la página no
+     mandaba la cabecera `Authorization` que la ruta exigía.
+   · "Eliminar cuenta" MENTÍA: esperaba dos segundos, decía "Tu cuenta ha sido
+     eliminada permanentemente" y cerraba la sesión. La cuenta seguía entera.
+   · Para guardar el teléfono había que rellenar calle, ciudad, provincia,
+     código postal y país. En Panamá el código postal casi no se usa.
+   · Los pedidos salían con "Total: N/A" (el campo es `totalAmount`, no
+     `total`), sin nombre de producto y con la imagen de relleno, porque los
+     datos que buscaba no venían en la respuesta.
+   · Los interruptores de notificaciones por correo y por SMS no guardaban
+     nada en ninguna parte: se movían y al recargar volvían a su sitio. El de
+     SMS además prometía algo que la tienda no hace.
+   · Media docena de fondos `bg-gray-50` / `bg-green-100` sin variante oscura.
+
+  Ahora son tres pestañas, todo en los colores de la marca, y lo que se ve es
+  lo que hay.
+*/
+
+import { useEffect, useMemo, useState } from "react"
+import Image from "next/image"
+import Link from "next/link"
 import { useAuth } from "@/context/auth-context"
-import { useFavorites } from "@/context/favorites-context"
 import { useTheme } from "@/context/theme-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Edit, 
-  Save, 
-  X, 
-  ShoppingBag, 
-  Heart, 
-  Settings,
-  Shield,
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  AlertCircle,
+  ArrowRight,
+  Box,
   Calendar,
-  Lock,
-  Bell,
-  Trash2,
-  Camera,
+  Check,
   Eye,
   EyeOff,
-  CheckCircle,
-  AlertCircle,
-  Package,
-  Star,
-  CreditCard,
+  Loader2,
+  Lock,
   LogOut,
+  Mail,
+  MapPin,
   Moon,
-  Sun,
+  Package,
   Pencil,
-  Home
+  Phone,
+  Settings,
+  Shield,
+  ShoppingBag,
+  Sun,
+  Trash2,
+  User as UserIcon,
+  X,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import AuthGuard from "@/components/auth-guard"
-import Link from "next/link"
-import ProductCard from "@/components/product-card"
 import ProfileAvatar from "@/components/profile-avatar"
 import AddressForm, { Address } from "@/components/address-form"
 
-interface UserSettings {
-  emailNotifications: boolean
-  smsNotifications: boolean
-  marketingEmails: boolean
-  orderUpdates: boolean
-  darkMode: boolean
+const DIRECCION_VACIA: Address = {
+  street: "",
+  city: "",
+  state: "",
+  zipCode: "",
+  country: "Panamá",
+}
+
+/** Etiqueta y color de cada estado de pedido, en los colores de la marca. */
+const ESTADOS: Record<string, { texto: string; clase: string }> = {
+  pending: {
+    texto: "Pendiente de pago",
+    clase: "bg-amber-100 text-amber-900 dark:bg-amber-400/15 dark:text-amber-200",
+  },
+  paid: {
+    texto: "Pagado",
+    clase: "bg-purple-100 text-purple-900 dark:bg-purple-400/15 dark:text-purple-100",
+  },
+  processing: {
+    texto: "En preparación",
+    clase: "bg-purple-100 text-purple-900 dark:bg-purple-400/15 dark:text-purple-100",
+  },
+  shipped: {
+    texto: "Enviado",
+    clase: "bg-sky-100 text-sky-900 dark:bg-sky-400/15 dark:text-sky-100",
+  },
+  delivered: {
+    texto: "Entregado",
+    clase: "bg-emerald-100 text-emerald-900 dark:bg-emerald-400/15 dark:text-emerald-100",
+  },
+  cancelled: {
+    texto: "Cancelado",
+    clase: "bg-rose-100 text-rose-900 dark:bg-rose-400/15 dark:text-rose-100",
+  },
+}
+
+function dinero(n: number | null | undefined) {
+  return typeof n === "number" ? `$${n.toFixed(2)}` : "—"
 }
 
 export default function ProfilePage() {
   const { user, isLoading, logout, updateProfile } = useAuth()
-  const { favorites, getFavoriteProducts } = useFavorites()
   const { isDarkMode, toggleDarkMode } = useTheme()
   const { toast } = useToast()
-  
-  // Profile editing states
-  const [isEditing, setIsEditing] = useState(false)
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [showPasswordDialog, setShowPasswordDialog] = useState(false)
-  
-  // Form states
-  const [editForm, setEditForm] = useState({
-    name: "",
-    email: "",
-    phone: "",
-    address: {
-      street: "",
-      city: "",
-      state: "",
-      zipCode: "",
-      country: ""
-    }
-  })
-  
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: "",
-    newPassword: "",
-    confirmPassword: ""
-  })
-  
-  const [settings, setSettings] = useState<UserSettings>({
-    emailNotifications: true,
-    smsNotifications: false,
-    marketingEmails: true,
-    orderUpdates: true,
-    darkMode: isDarkMode
-  })
-  
-  const [showPassword, setShowPassword] = useState({
-    current: false,
-    new: false,
-    confirm: false
-  })
 
-  const [orders, setOrders] = useState<any[]>([])
-  const [loadingOrders, setLoadingOrders] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [phoneError, setPhoneError] = useState<string | null>(null)
+  const [editando, setEditando] = useState(false)
+  const [guardando, setGuardando] = useState(false)
+  const [editandoDireccion, setEditandoDireccion] = useState(false)
+
+  const [datos, setDatos] = useState({ name: "", email: "", phone: "" })
+  const [direccion, setDireccion] = useState<Address>(DIRECCION_VACIA)
+
+  const [pedidos, setPedidos] = useState<any[]>([])
+  const [cargandoPedidos, setCargandoPedidos] = useState(false)
+
+  const [dialogoClave, setDialogoClave] = useState(false)
+  const [dialogoBorrar, setDialogoBorrar] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+  const [claves, setClaves] = useState({ actual: "", nueva: "", repetir: "" })
+  const [verClave, setVerClave] = useState({ actual: false, nueva: false })
+  const [cambiandoClave, setCambiandoClave] = useState(false)
 
   useEffect(() => {
-    if (user) {
-      setLoadingOrders(true)
-      fetch('/api/orders')
-        .then(res => res.json())
-        .then(data => {
-          const userOrders = Array.isArray(data)
-            ? data.filter((order: any) => order.user && (order.user.id === user.id || order.user === user.id))
-            : []
-          setOrders(userOrders)
-        })
-        .catch(() => setOrders([]))
-        .finally(() => setLoadingOrders(false))
-    }
-  }, [user])
-
-  useEffect(() => {
-    if (user) {
-      setEditForm({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        address: {
-          street: user.address?.street || "",
-          city: user.address?.city || "",
-          state: user.address?.state || "",
-          zipCode: user.address?.zipCode || "",
-          country: user.address?.country || ""
-        }
-      })
-    }
-  }, [user])
-
-  useEffect(() => {
-    const savedDarkMode = localStorage.getItem('darkMode')
-    if (savedDarkMode !== null) {
-      const isDarkMode = savedDarkMode === 'true'
-      setSettings(prev => ({ ...prev, darkMode: isDarkMode }))
-      
-      if (isDarkMode) {
-        document.documentElement.classList.add('dark')
-      } else {
-        document.documentElement.classList.remove('dark')
-      }
-    }
-  }, [])
-
-  const handleSave = async () => {
-    try {
-      if (!user) {
-        toast({
-          title: "❌ Error",
-          description: "Usuario no autenticado",
-          variant: "destructive"
-        })
-        return
-      }
-
-      if (!editForm.name.trim() || !editForm.email.trim()) {
-        toast({
-          title: "❌ Error",
-          description: "Nombre y email son campos obligatorios",
-          variant: "destructive"
-        })
-        return
-      }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(editForm.email)) {
-        toast({
-          title: "❌ Error",
-          description: "Formato de email inválido",
-          variant: "destructive"
-        })
-        return
-      }
-
-      setPhoneError(null)
-      if (editForm.phone.trim()) {
-        const phoneRegex = /^\+?[0-9\s\-()]{7,20}$/
-        if (!phoneRegex.test(editForm.phone.trim())) {
-          setPhoneError("Número de teléfono inválido. Usa solo dígitos, espacios, guiones, paréntesis y opcionalmente el prefijo +.")
-          toast({
-            title: "❌ Error",
-            description: "Número de teléfono inválido. Usa solo dígitos, espacios, guiones, paréntesis y opcionalmente el prefijo +.",
-            variant: "destructive"
-          })
-          return
-        }
-      }
-
-      const { street, city, state, zipCode, country } = editForm.address
-      if (!street.trim() || !city.trim() || !state.trim() || !zipCode.trim() || !country.trim()) {
-        toast({
-          title: "❌ Error",
-          description: "Todos los campos de dirección son obligatorios",
-          variant: "destructive"
-        })
-        return
-      }
-
-      const updateData = {
-        name: editForm.name.trim(),
-        email: editForm.email.trim(),
-        phone: editForm.phone.trim(),
-        address: {
-          street: street.trim(),
-          city: city.trim(),
-          state: state.trim(),
-          zipCode: zipCode.trim(),
-          country: country.trim()
-        }
-      }
-
-      setIsSaving(true)
-      const result = await updateProfile(updateData)
-      setIsSaving(false)
-      if (result && !result.error) {
-        toast({
-          title: "✅ Guardado",
-          description: "Perfil actualizado exitosamente",
-          variant: "default"
-        })
-        setIsEditing(false)
-      } else {
-        toast({
-          title: "❌ Error",
-          description: result?.error || "No se pudo actualizar el perfil",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      setIsSaving(false)
-      toast({
-        title: "❌ Error",
-        description: "Error inesperado al guardar el perfil",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handlePasswordChange = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast({
-        title: "❌ Error",
-        description: "Las contraseñas no coinciden.",
-        variant: "destructive"
-      })
-      return
-    }
-    
-    if (passwordForm.newPassword.length < 6) {
-      toast({
-        title: "❌ Error",
-        description: "La contraseña debe tener al menos 6 caracteres.",
-        variant: "destructive"
-      })
-      return
-    }
-
-    try {
-      if (!user) {
-        toast({
-          title: "❌ Error",
-          description: "Usuario no autenticado",
-          variant: "destructive"
-        })
-        return
-      }
-
-      const response = await fetch('/api/auth/change-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          currentPassword: passwordForm.currentPassword,
-          newPassword: passwordForm.newPassword,
-          userId: user?.id
-        }),
-      })
-
-      const data = await response.json()
-      const result = { success: response.ok, error: data.error }
-
-      if (result.success) {
-        toast({
-          title: "✅ Contraseña actualizada",
-          description: "Tu contraseña ha sido cambiada exitosamente.",
-        })
-        setShowPasswordDialog(false)
-        setPasswordForm({
-          currentPassword: "",
-          newPassword: "",
-          confirmPassword: ""
-        })
-      } else {
-        toast({
-          title: "❌ Error",
-          description: result.error || "No se pudo cambiar la contraseña. Inténtalo de nuevo.",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      console.error('Error changing password:', error)
-      toast({
-        title: "❌ Error",
-        description: "Error de conexión al cambiar la contraseña",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleDeleteAccount = async () => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 2000))
-      
-      toast({
-        title: "✅ Cuenta eliminada",
-        description: "Tu cuenta ha sido eliminada permanentemente.",
-      })
-      logout()
-    } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "No se pudo eliminar la cuenta. Inténtalo de nuevo.",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleCancel = () => {
-    if (user) {
-      setEditForm({
-        name: user.name || "",
-        email: user.email || "",
-        phone: user.phone || "",
-        address: user.address || {
-          street: "",
-          city: "",
-          state: "",
-          zipCode: "",
-          country: ""
-        }
-      })
-    }
-    setIsEditing(false)
-  }
-
-  const handleImageChange = async (imageUrl: string) => {
-    try {
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      const result = await updateProfile({ avatar: imageUrl })
-      
-      if (result.success) {
-        toast({
-          title: "✅ Imagen actualizada",
-          description: "Tu foto de perfil ha sido actualizada exitosamente.",
-        })
-      } else {
-        toast({
-          title: "❌ Error",
-          description: result.error || "No se pudo actualizar la imagen. Inténtalo de nuevo.",
-          variant: "destructive"
-        })
-      }
-    } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "No se pudo actualizar la imagen. Inténtalo de nuevo.",
-        variant: "destructive"
-      })
-    }
-  }
-
-  const handleDarkModeToggle = () => {
-    toggleDarkMode()
-    
-    toast({
-      title: !isDarkMode ? "🌙 Modo oscuro activado" : "☀️ Modo claro activado",
-      description: `Has cambiado al ${!isDarkMode ? 'modo oscuro' : 'modo claro'}.`,
+    if (!user) return
+    setDatos({
+      name: user.name || "",
+      email: user.email || "",
+      phone: user.phone || "",
     })
-  }
+    setDireccion({ ...DIRECCION_VACIA, ...(user.address || {}) })
+  }, [user])
 
-  const getUserInitials = (name: string) => {
-    return name
+  useEffect(() => {
+    if (!user) return
+    setCargandoPedidos(true)
+    fetch("/api/orders", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((d) => setPedidos(Array.isArray(d) ? d : []))
+      .catch(() => setPedidos([]))
+      .finally(() => setCargandoPedidos(false))
+  }, [user])
+
+  const miembroDesde = useMemo(() => {
+    const f = (user as any)?.createdAt
+    if (!f) return null
+    const d = new Date(f)
+    if (Number.isNaN(d.getTime())) return null
+    return d.toLocaleDateString("es-PA", { month: "long", year: "numeric" })
+  }, [user])
+
+  const iniciales = (nombre: string) =>
+    nombre
       .split(" ")
-      .map(n => n[0])
+      .map((n) => n[0])
       .join("")
       .toUpperCase()
       .slice(0, 2)
-  }
 
-  const getMemberSince = () => {
-    if (!(user as any)?.createdAt) return "Reciente"
-    const date = new Date((user as any).createdAt)
-    return date.toLocaleDateString('es-ES', { 
-      year: 'numeric', 
-      month: 'long', 
-      day: 'numeric' 
+  /* ── Guardar nombre, correo y teléfono ────────────────────────────────── */
+  const guardarDatos = async () => {
+    if (!datos.name.trim()) {
+      toast({ title: "Falta el nombre", variant: "destructive" })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(datos.email.trim())) {
+      toast({ title: "Ese correo no parece válido", variant: "destructive" })
+      return
+    }
+    if (datos.phone.trim() && !/^\+?[0-9\s\-()]{7,20}$/.test(datos.phone.trim())) {
+      toast({
+        title: "Revisa el teléfono",
+        description: "Solo números, espacios, guiones, paréntesis y, si quieres, el prefijo +.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    setGuardando(true)
+    const r = await updateProfile({
+      name: datos.name.trim(),
+      email: datos.email.trim(),
+      phone: datos.phone.trim(),
     })
+    setGuardando(false)
+
+    if (r?.success) {
+      setEditando(false)
+      toast({ title: "Listo", description: "Tus datos quedaron guardados." })
+    } else {
+      toast({
+        title: "No se pudo guardar",
+        description: r?.error || "Inténtalo de nuevo en un momento.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleSaveAddress = async (address: Address) => {
+  /* ── Guardar la dirección de envío ────────────────────────────────────── */
+  const guardarDireccion = async (nueva: Address) => {
+    const r = await updateProfile({ address: nueva })
+    if (r?.success) {
+      setDireccion(nueva)
+      setEditandoDireccion(false)
+      toast({ title: "Dirección guardada" })
+    } else {
+      toast({
+        title: "No se pudo guardar la dirección",
+        description: r?.error || "Inténtalo de nuevo.",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const cambiarFoto = async (url: string) => {
+    const r = await updateProfile({ avatar: url })
+    toast(
+      r?.success
+        ? { title: "Foto actualizada" }
+        : {
+            title: "No se pudo cambiar la foto",
+            description: r?.error || "Inténtalo de nuevo.",
+            variant: "destructive",
+          },
+    )
+  }
+
+  /* ── Contraseña ───────────────────────────────────────────────────────── */
+  const cambiarClave = async () => {
+    if (claves.nueva !== claves.repetir) {
+      toast({ title: "Las contraseñas no coinciden", variant: "destructive" })
+      return
+    }
+    if (claves.nueva.length < 6) {
+      toast({ title: "La contraseña necesita al menos 6 caracteres", variant: "destructive" })
+      return
+    }
+    setCambiandoClave(true)
     try {
-      if (!user) return
-      const updateData = {
-        ...editForm,
-        address
-      }
-      const result = await updateProfile(updateData)
-      if (result && !result.error) {
-        toast({
-          title: "✅ Guardado",
-          description: "Dirección actualizada exitosamente",
-          variant: "default"
-        })
-        setIsEditing(false)
+      const res = await fetch("/api/auth/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          currentPassword: claves.actual,
+          newPassword: claves.nueva,
+        }),
+      })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        setDialogoClave(false)
+        setClaves({ actual: "", nueva: "", repetir: "" })
+        toast({ title: "Contraseña cambiada" })
       } else {
         toast({
-          title: "❌ Error",
-          description: result?.error || "No se pudo actualizar la dirección",
-          variant: "destructive"
+          title: "No se pudo cambiar",
+          description: data.error || "Revisa la contraseña actual.",
+          variant: "destructive",
         })
       }
-    } catch (error) {
-      toast({
-        title: "❌ Error",
-        description: "Error inesperado al guardar la dirección",
-        variant: "destructive"
-      })
+    } catch {
+      toast({ title: "Error de conexión", variant: "destructive" })
+    } finally {
+      setCambiandoClave(false)
+    }
+  }
+
+  /* ── Baja de la cuenta ────────────────────────────────────────────────── */
+  const borrarCuenta = async () => {
+    setBorrando(true)
+    try {
+      const res = await fetch("/api/account", { method: "DELETE", credentials: "include" })
+      const data = await res.json().catch(() => ({}))
+      if (res.ok) {
+        toast({ title: "Cuenta eliminada", description: "Se borraron tus datos." })
+        logout()
+      } else {
+        toast({
+          title: "No se pudo eliminar",
+          description: data.error || "Inténtalo de nuevo.",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      toast({ title: "Error de conexión", variant: "destructive" })
+    } finally {
+      setBorrando(false)
+      setDialogoBorrar(false)
     }
   }
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+      <div className="flex min-h-screen items-center justify-center bg-purple-50 dark:bg-white/5">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Cargando tu perfil...</p>
+          <Loader2 className="mx-auto mb-4 h-10 w-10 animate-spin text-purple-700 dark:text-purple-300" />
+          <p className="text-gray-600 dark:text-purple-100/70">Cargando tu cuenta…</p>
         </div>
       </div>
     )
   }
 
+  const tieneDireccion = Boolean(direccion.street || direccion.city || direccion.state)
+
   return (
     <AuthGuard>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-blue-50">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-6xl mx-auto">
-            <div className="mb-8 text-center">
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">Mi Cuenta</h1>
-              <p className="text-gray-600 text-lg">Gestiona tu perfil, pedidos y preferencias</p>
-            </div>
-
-            {/* Barra de navegación horizontal SIEMPRE arriba del contenido */}
-            <Tabs defaultValue="profile" className="w-full max-w-3xl mx-auto mb-8">
-              <TabsList
-                className="grid grid-cols-5 w-full bg-white rounded-lg h-14 gap-2 border border-gray-200"
-              >
-                <TabsTrigger value="profile" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-purple-800 text-base font-medium">
-                  <User className="h-5 w-5" />
-                  <span className="hidden md:inline">Perfil</span>
-                </TabsTrigger>
-                <TabsTrigger value="orders" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-green-800 text-base font-medium">
-                  <ShoppingBag className="h-5 w-5" />
-                  <span className="hidden md:inline">Pedidos</span>
-                </TabsTrigger>
-                <TabsTrigger value="favorites" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-pink-800 text-base font-medium">
-                  <Heart className="h-5 w-5" />
-                  <span className="hidden md:inline">Favoritos</span>
-                </TabsTrigger>
-                <TabsTrigger value="settings" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-blue-800 text-base font-medium">
-                  <Settings className="h-5 w-5" />
-                  <span className="hidden md:inline">Configuración</span>
-                </TabsTrigger>
-                <TabsTrigger value="security" className="flex flex-row items-center justify-center gap-2 h-full rounded-md text-center w-full transition-none data-[state=active]:text-gray-800 text-base font-medium">
-                  <Shield className="h-5 w-5" />
-                  <span className="hidden md:inline">Seguridad</span>
-                </TabsTrigger>
-              </TabsList>
-              <TabsContent value="profile" className="space-y-6">
-                    <Card className="shadow-lg border-0">
-                      <CardHeader className="bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-t-lg">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <CardTitle className="text-white">Información Personal</CardTitle>
-                            <CardDescription className="text-purple-100">
-                              Actualiza tu información personal y de contacto
-                            </CardDescription>
-                          </div>
-                          {!isEditing ? (
-                            <Button onClick={() => setIsEditing(true)} variant="secondary" className="bg-white/20 hover:bg-white/30">
-                              <Edit className="h-4 w-4 mr-2" />
-                              Editar
-                            </Button>
-                          ) : (
-                            <div className="flex gap-2">
-                              <Button onClick={handleSave} size="sm" className="bg-green-600 hover:bg-green-700" disabled={isSaving}>
-                                <Save className="h-4 w-4 mr-2" />
-                                {isSaving ? "Guardando..." : "Guardar"}
-                              </Button>
-                              <Button onClick={handleCancel} variant="secondary" size="sm">
-                                <X className="h-4 w-4 mr-2" />
-                                Cancelar
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                          <div className="w-full grid grid-cols-1 md:grid-cols-[180px_1fr] gap-6 items-center md:items-start">
-                            <div className="flex justify-center md:justify-start">
-                              <ProfileAvatar
-                                currentImage={user?.avatar}
-                                userName={user?.name || 'Usuario'}
-                                onImageChange={handleImageChange}
-                                size="lg"
-                                isEditing={isEditing}
-                              />
-                            </div>
-                            <div className="flex flex-col w-full md:bg-gray-50 md:rounded-xl md:p-6 md:shadow-sm md:border md:ml-0">
-                              <h3 className="text-3xl font-extrabold text-gray-900 break-words w-full text-center md:text-left mb-2 md:mb-4">{user?.name}</h3>
-                              <div className="flex flex-col md:flex-row md:items-center md:gap-4 w-full">
-                                <p className="text-gray-600 flex items-center gap-2 break-all w-full text-center md:text-left md:w-auto md:mb-0 mb-2">
-                                  <Mail className="h-4 w-4 shrink-0" />
-                                  <span className="break-all">{user?.email}</span>
-                                </p>
-                                <div className="flex flex-wrap justify-center md:justify-start items-center gap-2 w-full md:w-auto">
-                                  {user?.isAdmin && (
-                                    <Badge variant="secondary" className="bg-purple-100 text-purple-800">
-                                      <Shield className="h-3 w-3 mr-1" />
-                                      Administrador
-                                    </Badge>
-                                  )}
-                                  <Badge variant="outline" className="text-gray-600">
-                                    <Calendar className="h-3 w-3 mr-1" />
-                                    Miembro desde {getMemberSince()}
-                                  </Badge>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        <Separator className="my-6" />
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="space-y-2">
-                            <Label htmlFor="name" className="text-sm font-medium">Nombre completo</Label>
-                            <div className="relative">
-                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                              <Input
-                                id="name"
-                                value={editForm.name}
-                                onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                                disabled={!isEditing}
-                                className="pl-10 h-12"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-                            <div className="relative">
-                              <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                              <Input
-                                id="email"
-                                type="email"
-                                value={editForm.email}
-                                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                disabled={!isEditing}
-                                className="pl-10 h-12"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="space-y-2">
-                            <Label htmlFor="phone" className="text-sm font-medium">Teléfono</Label>
-                            <div className="relative">
-                              <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                              <Input
-                                id="phone"
-                                value={editForm.phone}
-                                onChange={(e) => {
-                                  setEditForm({ ...editForm, phone: e.target.value })
-                                  setPhoneError(null)
-                                }}
-                                disabled={!isEditing}
-                                className="pl-10 h-12"
-                              />
-                              {phoneError && (
-                                <div className="text-red-500 text-xs mt-1">{phoneError}</div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 mt-8">
-                          <div className="flex items-center space-x-2">
-                            <MapPin className="h-5 w-5 text-purple-600" />
-                            <h4 className="font-semibold text-lg">Dirección de Envío</h4>
-                          </div>
-                          {isEditing ? (
-                            <AddressForm
-                              initialAddress={editForm.address}
-                              onSave={async (address: Address) => {
-                                await handleSaveAddress(address)
-                              }}
-                              loading={isLoading}
-                              disabled={isLoading}
-                            />
-                          ) : (
-                            <div className="space-y-1">
-                              <div><strong>Calle:</strong> {user?.address?.street || "-"}</div>
-                              <div><strong>Ciudad:</strong> {user?.address?.city || "-"}</div>
-                              <div><strong>Provincia/Estado:</strong> {user?.address?.state || "-"}</div>
-                              <div><strong>Código Postal:</strong> {user?.address?.zipCode || "-"}</div>
-                              <div><strong>País:</strong> {user?.address?.country || "-"}</div>
-                            </div>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="orders" className="space-y-6">
-                    <Card className="shadow-lg border-0">
-                      <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center text-white">
-                          <ShoppingBag className="h-6 w-6 mr-3" />
-                          Mis Pedidos
-                        </CardTitle>
-                        <CardDescription className="text-green-100">
-                          Historial de todos tus pedidos y su estado
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        {loadingOrders ? (
-                          <div className="text-center py-12">
-                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-green-600 mx-auto mb-4"></div>
-                            <p className="text-gray-600">Cargando pedidos...</p>
-                          </div>
-                        ) : orders.length > 0 ? (
-                          <div className="space-y-6">
-                            {orders.map((order) => (
-                              <div key={order.id} className="border rounded-lg p-4 bg-gray-50">
-                                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                                  <div>
-                                    <span className="font-semibold">Pedido:</span> {order.orderNumber || order.id}
-                                    <span className="ml-4 font-semibold">Fecha:</span> {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : 'N/A'}
-                                  </div>
-                                  <div>
-                                    <Badge variant="outline" className="capitalize">
-                                      {order.status}
-                                    </Badge>
-                                    {order.isPaid && <Badge variant="secondary" className="ml-2">Pagado</Badge>}
-                                  </div>
-                                </div>
-                                <div className="overflow-x-auto">
-                                  <table className="min-w-full text-sm">
-                                    <thead>
-                                      <tr>
-                                        <th className="text-left p-2">Producto</th>
-                                        <th className="text-left p-2">Cantidad</th>
-                                        <th className="text-left p-2">Precio</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {order.items.map((item: any, idx: number) => (
-                                        <tr key={idx}>
-                                          <td className="p-2 flex items-center gap-2">
-                                            <img src={item.image || (item.product && item.product.images && item.product.images[0]) || '/placeholder.svg'} alt={item.name} className="w-10 h-10 object-cover rounded" />
-                                            <span>{item.name || (item.product && item.product.name)}</span>
-                                          </td>
-                                          <td className="p-2">{item.quantity}</td>
-                                          <td className="p-2">${item.price.toFixed(2)}</td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-                                <div className="flex justify-end mt-2">
-                                  <span className="font-semibold">Total: ${order.total?.toFixed(2) || 'N/A'}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-12">
-                            <div className="bg-green-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                              <ShoppingBag className="h-12 w-12 text-green-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay pedidos aún</h3>
-                            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                              Cuando hagas tu primer pedido, aparecerá aquí con todos los detalles y el estado de seguimiento.
-                            </p>
-                            <Link href="/shop">
-                              <Button size="lg" className="bg-green-600 hover:bg-green-700">
-                                <ShoppingBag className="h-5 w-5 mr-2" />
-                                Ir a la Tienda
-                              </Button>
-                            </Link>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="favorites" className="space-y-6">
-                    <Card className="shadow-lg border-0">
-                      <CardHeader className="bg-gradient-to-r from-pink-600 to-rose-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center text-white">
-                          <Heart className="h-6 w-6 mr-3" />
-                          Mis Favoritos
-                        </CardTitle>
-                        <CardDescription className="text-pink-100">
-                          Productos que has marcado como favoritos
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6">
-                        {favorites && favorites.length > 0 ? (
-                          <>
-                            <div className="flex flex-row items-center gap-1 mt-4 mb-6 w-full overflow-x-auto min-w-0 px-1 sm:px-0">
-                              {/* Filtro */}
-                              <div className="flex items-center gap-1 shrink-0">
-                                <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707l-6.414 6.414A1 1 0 0013 13.414V19a1 1 0 01-1.447.894l-4-2A1 1 0 017 17v-3.586a1 1 0 00-.293-.707L3.293 6.707A1 1 0 013 6V4z" /></svg>
-                                <select className="rounded border px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs max-w-[120px] sm:max-w-[160px]">
-                                  <option>Todas las...</option>
-                                </select>
-                              </div>
-                              {/* Orden */}
-                              <div className="flex items-center gap-1 shrink-0">
-                                <svg className="h-4 w-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 6h18M3 14h18M3 18h18" /></svg>
-                                <select className="rounded border px-1.5 py-0.5 sm:px-2 sm:py-1 text-xs max-w-[120px] sm:max-w-[160px]">
-                                  <option>Más recientes</option>
-                                </select>
-                              </div>
-                              {/* Botones de vista */}
-                              <div className="flex items-center gap-1 shrink-0">
-                                <button className="rounded p-0.5 sm:p-1 bg-purple-600 text-white"><svg className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="14" y="14" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /></svg></button>
-                                <button className="rounded p-0.5 sm:p-1 bg-white border"><svg className="h-4 w-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" /><rect x="3" y="10" width="18" height="4" /><rect x="3" y="16" width="18" height="4" /></svg></button>
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
-                              {getFavoriteProducts().map((product) => (
-                                <ProductCard key={product.id} product={product} />
-                              ))}
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-center py-12">
-                            <div className="bg-pink-100 rounded-full p-6 w-24 h-24 mx-auto mb-6 flex items-center justify-center">
-                              <Heart className="h-12 w-12 text-pink-600" />
-                            </div>
-                            <h3 className="text-2xl font-bold text-gray-900 mb-3">No hay favoritos aún</h3>
-                            <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                              Marca productos como favoritos para verlos aquí y acceder rápidamente a ellos.
-                            </p>
-                            <Link href="/shop">
-                              <Button size="lg" className="bg-pink-600 hover:bg-pink-700">
-                                <Heart className="h-5 w-5 mr-2" />
-                                Explorar Productos
-                              </Button>
-                            </Link>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="settings" className="space-y-6">
-                    <Card className="shadow-lg border-0">
-                      <CardHeader className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center text-white">
-                          <Settings className="h-6 w-6 mr-3" />
-                          Configuración de Notificaciones
-                        </CardTitle>
-                        <CardDescription className="text-blue-100">
-                          Gestiona cómo recibes las notificaciones
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-6">
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-blue-100 p-2 rounded-lg">
-                              <Bell className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">Notificaciones por email</h4>
-                              <p className="text-sm text-gray-600">Recibe actualizaciones sobre tus pedidos</p>
-                            </div>
-                          </div>
-                          <Switch
-                            checked={settings.emailNotifications}
-                            onCheckedChange={(checked) => setSettings({...settings, emailNotifications: checked})}
-                          />
-                        </div>
-                        
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-green-100 p-2 rounded-lg">
-                              <Phone className="h-5 w-5 text-green-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">Notificaciones SMS</h4>
-                              <p className="text-sm text-gray-600">Recibe alertas por mensaje de texto</p>
-                            </div>
-                          </div>
-                          <Switch
-                            checked={settings.smsNotifications}
-                            onCheckedChange={(checked) => setSettings({...settings, smsNotifications: checked})}
-                          />
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all duration-300 bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-800/50 dark:to-gray-700/50">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 p-3 rounded-xl shadow-md">
-                              {isDarkMode ? (
-                                <Sun className="h-6 w-6 text-yellow-500" />
-                              ) : (
-                                <Moon className="h-6 w-6 text-gray-600 dark:text-gray-300" />
-                              )}
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-gray-900 dark:text-gray-100">Modo oscuro</h4>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {isDarkMode ? "Activa el modo claro para una experiencia más brillante" : "Activa el modo oscuro para una experiencia más suave"}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="relative">
-                            <Switch
-                              checked={isDarkMode}
-                              onCheckedChange={handleDarkModeToggle}
-                              className="data-[state=checked]:bg-gradient-to-r data-[state=checked]:from-purple-500 data-[state=checked]:to-blue-500"
-                            />
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-gradient-to-r from-purple-400 to-blue-400 rounded-full opacity-0 transition-opacity duration-300 pointer-events-none"></div>
-                          </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="security" className="space-y-6">
-                    <Card className="shadow-lg border-0">
-                      <CardHeader className="bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-t-lg">
-                        <CardTitle className="flex items-center text-white">
-                          <Shield className="h-6 w-6 mr-3" />
-                          Seguridad de la Cuenta
-                        </CardTitle>
-                        <CardDescription className="text-red-100">
-                          Gestiona la seguridad de tu cuenta
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent className="p-6 space-y-6">
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-blue-100 p-2 rounded-lg">
-                              <Lock className="h-5 w-5 text-blue-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">Cambiar contraseña</h4>
-                              <p className="text-sm text-gray-600">Actualiza tu contraseña de seguridad</p>
-                            </div>
-                          </div>
-                          <Dialog open={showPasswordDialog} onOpenChange={setShowPasswordDialog}>
-                            <DialogTrigger asChild>
-                              <Button variant="outline" size="sm">
-                                Cambiar
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent className="sm:max-w-md">
-                              <DialogHeader>
-                                <DialogTitle>Cambiar Contraseña</DialogTitle>
-                                <DialogDescription>
-                                  Ingresa tu contraseña actual y la nueva contraseña.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <div className="space-y-4">
-                                <div className="space-y-2">
-                                  <Label htmlFor="currentPassword">Contraseña actual</Label>
-                                  <div className="relative">
-                                    <Input
-                                      id="currentPassword"
-                                      type={showPassword.current ? "text" : "password"}
-                                      value={passwordForm.currentPassword}
-                                      onChange={(e) => setPasswordForm({...passwordForm, currentPassword: e.target.value})}
-                                      className="pr-10"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() => setShowPassword({...showPassword, current: !showPassword.current})}
-                                    >
-                                      {showPassword.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="newPassword">Nueva contraseña</Label>
-                                  <div className="relative">
-                                    <Input
-                                      id="newPassword"
-                                      type={showPassword.new ? "text" : "password"}
-                                      value={passwordForm.newPassword}
-                                      onChange={(e) => setPasswordForm({...passwordForm, newPassword: e.target.value})}
-                                      className="pr-10"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() => setShowPassword({...showPassword, new: !showPassword.new})}
-                                    >
-                                      {showPassword.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="space-y-2">
-                                  <Label htmlFor="confirmPassword">Confirmar nueva contraseña</Label>
-                                  <div className="relative">
-                                    <Input
-                                      id="confirmPassword"
-                                      type={showPassword.confirm ? "text" : "password"}
-                                      value={passwordForm.confirmPassword}
-                                      onChange={(e) => setPasswordForm({...passwordForm, confirmPassword: e.target.value})}
-                                      className="pr-10"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                                      onClick={() => setShowPassword({...showPassword, confirm: !showPassword.confirm})}
-                                    >
-                                      {showPassword.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                                    </Button>
-                                  </div>
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>
-                                  Cancelar
-                                </Button>
-                                <Button onClick={handlePasswordChange}>
-                                  Cambiar Contraseña
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-red-100 p-2 rounded-lg">
-                              <Trash2 className="h-5 w-5 text-red-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">Eliminar cuenta</h4>
-                              <p className="text-sm text-gray-600">Elimina permanentemente tu cuenta</p>
-                            </div>
-                          </div>
-                          <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-                            <DialogTrigger asChild>
-                              <Button variant="destructive" size="sm">
-                                Eliminar
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>¿Estás seguro?</DialogTitle>
-                                <DialogDescription>
-                                  Esta acción no se puede deshacer. Se eliminará permanentemente tu cuenta y todos tus datos.
-                                </DialogDescription>
-                              </DialogHeader>
-                              <DialogFooter>
-                                <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
-                                  Cancelar
-                                </Button>
-                                <Button variant="destructive" onClick={handleDeleteAccount}>
-                                  Sí, eliminar cuenta
-                                </Button>
-                              </DialogFooter>
-                            </DialogContent>
-                          </Dialog>
-                        </div>
-
-                        <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                          <div className="flex items-center space-x-3">
-                            <div className="bg-gray-100 p-2 rounded-lg">
-                              <LogOut className="h-5 w-5 text-gray-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold">Cerrar sesión</h4>
-                              <p className="text-sm text-gray-600">Cierra tu sesión actual</p>
-                            </div>
-                          </div>
-                          <Button variant="outline" size="sm" onClick={logout}>
-                            Cerrar Sesión
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-                </Tabs>
+      <div className="min-h-screen bg-purple-50 dark:bg-white/5">
+        <div className="container mx-auto max-w-5xl px-4 py-8 sm:py-10">
+          {/* ── Cabecera de la cuenta ─────────────────────────────────── */}
+          <div className="mb-6 rounded-3xl border border-purple-100 bg-card p-5 shadow-sm dark:border-white/10 sm:p-7">
+            <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:items-center sm:text-left">
+              <ProfileAvatar
+                currentImage={user?.avatar}
+                userName={user?.name || "Usuario"}
+                onImageChange={cambiarFoto}
+                size="lg"
+                isEditing
+              />
+              <div className="min-w-0 flex-1">
+                <h1 className="font-display text-2xl font-bold text-purple-900 dark:text-purple-50 sm:text-3xl">
+                  {user?.name || iniciales("U")}
+                </h1>
+                <p className="mt-1 flex items-center justify-center gap-2 break-all text-sm text-gray-600 dark:text-purple-100/70 sm:justify-start">
+                  <Mail className="h-4 w-4 shrink-0" />
+                  {user?.email}
+                </p>
+                <div className="mt-3 flex flex-wrap justify-center gap-2 sm:justify-start">
+                  {user?.isAdmin && (
+                    <Badge className="border-none bg-purple-100 text-purple-900 dark:bg-purple-400/15 dark:text-purple-100">
+                      <Shield className="mr-1 h-3 w-3" /> Administradora
+                    </Badge>
+                  )}
+                  {miembroDesde && (
+                    <Badge
+                      variant="outline"
+                      className="border-purple-200 text-gray-600 dark:border-white/15 dark:text-purple-100/70"
+                    >
+                      <Calendar className="mr-1 h-3 w-3" /> Desde {miembroDesde}
+                    </Badge>
+                  )}
+                  <Badge
+                    variant="outline"
+                    className="border-purple-200 text-gray-600 dark:border-white/15 dark:text-purple-100/70"
+                  >
+                    <Package className="mr-1 h-3 w-3" />
+                    {pedidos.length === 1 ? "1 pedido" : `${pedidos.length} pedidos`}
+                  </Badge>
+                </div>
               </div>
+              {user?.isAdmin && (
+                <Button
+                  asChild
+                  variant="outline"
+                  className="shrink-0 rounded-full border-purple-200 dark:border-white/15"
+                >
+                  <Link href="/admin">
+                    <Settings className="mr-2 h-4 w-4" /> Panel
+                  </Link>
+                </Button>
+              )}
             </div>
           </div>
-        </AuthGuard>
-      );
-    }
+
+          <Tabs defaultValue="perfil" className="w-full">
+            <TabsList className="mb-6 grid h-auto w-full grid-cols-3 gap-1 rounded-2xl border border-purple-100 bg-card p-1.5 dark:border-white/10">
+              {/* En el teléfono las etiquetas estaban ocultas y quedaban tres
+                  iconos sueltos sin decir a dónde llevaban. Con texto chico
+                  entran las tres. */}
+              {[
+                { v: "perfil", icono: UserIcon, texto: "Mis datos" },
+                { v: "pedidos", icono: ShoppingBag, texto: "Pedidos" },
+                { v: "cuenta", icono: Shield, texto: "Cuenta" },
+              ].map(({ v, icono: Icono, texto }) => (
+                <TabsTrigger
+                  key={v}
+                  value={v}
+                  className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium data-[state=active]:bg-purple-100 data-[state=active]:text-purple-900 sm:gap-2 sm:text-sm dark:data-[state=active]:bg-white/10 dark:data-[state=active]:text-purple-50"
+                >
+                  <Icono className="h-4 w-4 shrink-0" />
+                  <span>{texto}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {/* ── Mis datos ───────────────────────────────────────────── */}
+            <TabsContent value="perfil" className="space-y-5">
+              <section className="rounded-3xl border border-purple-100 bg-card p-5 shadow-sm dark:border-white/10 sm:p-7">
+                <div className="mb-5 flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-semibold text-purple-900 dark:text-purple-50">
+                      Datos personales
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                      Con esto te escribimos cuando tu pedido cambia de estado.
+                    </p>
+                  </div>
+                  {!editando ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 rounded-full border-purple-200 dark:border-white/15"
+                      onClick={() => setEditando(true)}
+                    >
+                      <Pencil className="mr-2 h-3.5 w-3.5" /> Editar
+                    </Button>
+                  ) : (
+                    <div className="flex shrink-0 gap-2">
+                      <Button
+                        size="sm"
+                        className="rounded-full bg-purple-700 hover:bg-purple-800"
+                        onClick={guardarDatos}
+                        disabled={guardando}
+                      >
+                        {guardando ? (
+                          <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Check className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        Guardar
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="rounded-full"
+                        onClick={() => {
+                          setEditando(false)
+                          setDatos({
+                            name: user?.name || "",
+                            email: user?.email || "",
+                            phone: user?.phone || "",
+                          })
+                        }}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="nombre">Nombre</Label>
+                    <Input
+                      id="nombre"
+                      value={datos.name}
+                      disabled={!editando}
+                      onChange={(e) => setDatos({ ...datos, name: e.target.value })}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="correo">Correo</Label>
+                    <Input
+                      id="correo"
+                      type="email"
+                      value={datos.email}
+                      disabled={!editando}
+                      onChange={(e) => setDatos({ ...datos, email: e.target.value })}
+                      className="h-11"
+                    />
+                  </div>
+                  <div className="space-y-1.5 sm:col-span-2">
+                    <Label htmlFor="tel">
+                      Teléfono <span className="text-gray-500 dark:text-purple-100/50">(opcional)</span>
+                    </Label>
+                    <Input
+                      id="tel"
+                      value={datos.phone}
+                      disabled={!editando}
+                      placeholder="6000-0000"
+                      onChange={(e) => setDatos({ ...datos, phone: e.target.value })}
+                      className="h-11"
+                    />
+                  </div>
+                </div>
+              </section>
+
+              {/* Dirección de envío */}
+              <section className="rounded-3xl border border-purple-100 bg-card p-5 shadow-sm dark:border-white/10 sm:p-7">
+                <div className="mb-5 flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="flex items-center gap-2 text-lg font-semibold text-purple-900 dark:text-purple-50">
+                      <MapPin className="h-4 w-4" /> Dirección de envío
+                    </h2>
+                    <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                      Se usa para calcular el envío en la compra.
+                    </p>
+                  </div>
+                  {!editandoDireccion && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 rounded-full border-purple-200 dark:border-white/15"
+                      onClick={() => setEditandoDireccion(true)}
+                    >
+                      <Pencil className="mr-2 h-3.5 w-3.5" />
+                      {tieneDireccion ? "Cambiar" : "Agregar"}
+                    </Button>
+                  )}
+                </div>
+
+                {editandoDireccion ? (
+                  <>
+                    <AddressForm
+                      initialAddress={direccion}
+                      onSave={guardarDireccion}
+                      noFormWrapper
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-3 rounded-full"
+                      onClick={() => setEditandoDireccion(false)}
+                    >
+                      Cancelar
+                    </Button>
+                  </>
+                ) : tieneDireccion ? (
+                  <p className="text-gray-700 dark:text-purple-100/80">
+                    {[direccion.street, direccion.city, direccion.state, direccion.country]
+                      .filter(Boolean)
+                      .join(", ")}
+                    {direccion.zipCode ? ` · ${direccion.zipCode}` : ""}
+                  </p>
+                ) : (
+                  <p className="flex items-center gap-2 text-gray-600 dark:text-purple-100/70">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    Todavía no tienes una dirección guardada.
+                  </p>
+                )}
+              </section>
+            </TabsContent>
+
+            {/* ── Mis pedidos ─────────────────────────────────────────── */}
+            <TabsContent value="pedidos" className="space-y-5">
+              {cargandoPedidos ? (
+                <div className="rounded-3xl border border-purple-100 bg-card p-12 text-center dark:border-white/10">
+                  <Loader2 className="mx-auto mb-3 h-8 w-8 animate-spin text-purple-700 dark:text-purple-300" />
+                  <p className="text-gray-600 dark:text-purple-100/70">Buscando tus pedidos…</p>
+                </div>
+              ) : pedidos.length === 0 ? (
+                <div className="rounded-3xl border border-purple-100 bg-card p-10 text-center dark:border-white/10 sm:p-14">
+                  <span className="mx-auto mb-5 grid h-20 w-20 place-items-center rounded-full bg-purple-100 dark:bg-white/10">
+                    <ShoppingBag className="h-9 w-9 text-purple-700 dark:text-purple-300" />
+                  </span>
+                  <h3 className="mb-2 text-xl font-semibold text-purple-900 dark:text-purple-50">
+                    Todavía no hay pedidos
+                  </h3>
+                  <p className="mx-auto mb-6 max-w-sm text-gray-600 dark:text-purple-100/70">
+                    Cuando hagas tu primera compra aparecerá acá, con su estado y lo que
+                    llevaste.
+                  </p>
+                  <Button asChild className="rounded-full bg-purple-700 px-7 hover:bg-purple-800">
+                    <Link href="/shop">
+                      Ver la tienda <ArrowRight className="ml-2 h-4 w-4" />
+                    </Link>
+                  </Button>
+                </div>
+              ) : (
+                pedidos.map((p) => {
+                  const estado = ESTADOS[p.status] ?? {
+                    texto: p.status,
+                    clase: "bg-purple-100 text-purple-900 dark:bg-white/10 dark:text-purple-100",
+                  }
+                  return (
+                    <article
+                      key={p.id}
+                      className="overflow-hidden rounded-3xl border border-purple-100 bg-card shadow-sm dark:border-white/10"
+                    >
+                      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-purple-100 px-5 py-4 dark:border-white/10">
+                        <div>
+                          <p className="flex items-center gap-2 font-semibold text-purple-900 dark:text-purple-50">
+                            <Box className="h-4 w-4" />
+                            Pedido {String(p.id).slice(0, 8).toUpperCase()}
+                          </p>
+                          <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                            {p.createdAt
+                              ? new Date(p.createdAt).toLocaleDateString("es-PA", {
+                                  day: "numeric",
+                                  month: "long",
+                                  year: "numeric",
+                                })
+                              : ""}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`rounded-full px-3 py-1 text-xs font-semibold ${estado.clase}`}
+                          >
+                            {estado.texto}
+                          </span>
+                          <span className="text-lg font-bold text-purple-900 dark:text-purple-50">
+                            {dinero(p.totalAmount)}
+                          </span>
+                        </div>
+                      </header>
+
+                      <ul className="divide-y divide-purple-100 dark:divide-white/10">
+                        {(p.items ?? []).map((it: any) => {
+                          const prod = it.product
+                          const foto = prod?.images?.[0] || "/placeholder.jpg"
+                          return (
+                            <li key={it.id} className="flex items-center gap-4 px-5 py-4">
+                              <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-purple-50 dark:bg-white/5">
+                                <Image
+                                  src={foto}
+                                  alt={prod?.name || "Producto"}
+                                  fill
+                                  sizes="64px"
+                                  className="object-cover"
+                                />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                {prod?.id ? (
+                                  <Link
+                                    href={`/product/${prod.id}`}
+                                    className="font-medium text-purple-900 hover:underline dark:text-purple-50"
+                                  >
+                                    {prod.name}
+                                  </Link>
+                                ) : (
+                                  <span className="font-medium text-purple-900 dark:text-purple-50">
+                                    Producto no disponible
+                                  </span>
+                                )}
+                                <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                                  {it.quantity} × {dinero(it.price)}
+                                </p>
+                              </div>
+                              <span className="font-semibold text-purple-900 dark:text-purple-50">
+                                {dinero(it.price * it.quantity)}
+                              </span>
+                            </li>
+                          )
+                        })}
+                      </ul>
+                    </article>
+                  )
+                })
+              )}
+            </TabsContent>
+
+            {/* ── Cuenta ──────────────────────────────────────────────── */}
+            <TabsContent value="cuenta" className="space-y-5">
+              <section className="rounded-3xl border border-purple-100 bg-card p-5 shadow-sm dark:border-white/10 sm:p-7">
+                <h2 className="mb-5 text-lg font-semibold text-purple-900 dark:text-purple-50">
+                  Preferencias
+                </h2>
+                <div className="flex items-center justify-between gap-4 rounded-2xl border border-purple-100 p-4 dark:border-white/10">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-purple-100 dark:bg-white/10">
+                      {isDarkMode ? (
+                        <Moon className="h-5 w-5 text-purple-700 dark:text-purple-300" />
+                      ) : (
+                        <Sun className="h-5 w-5 text-purple-700" />
+                      )}
+                    </span>
+                    <div>
+                      <h3 className="font-medium text-purple-900 dark:text-purple-50">Modo oscuro</h3>
+                      <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                        Se recuerda en este navegador.
+                      </p>
+                    </div>
+                  </div>
+                  <Switch checked={isDarkMode} onCheckedChange={toggleDarkMode} />
+                </div>
+                {/*
+                  Acá había dos interruptores más, "Notificaciones por email" y
+                  "Notificaciones SMS". No guardaban nada y la tienda no manda
+                  SMS. El correo de los pedidos sale siempre, así que se dice y
+                  ya, sin un botón que no apaga nada.
+                */}
+                <p className="mt-4 flex items-start gap-2 text-sm text-gray-600 dark:text-purple-100/70">
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0" />
+                  Te escribimos a <strong className="font-medium">{user?.email}</strong> cuando
+                  confirmamos tu pedido y cuando sale para entrega.
+                </p>
+              </section>
+
+              <section className="rounded-3xl border border-purple-100 bg-card p-5 shadow-sm dark:border-white/10 sm:p-7">
+                <h2 className="mb-5 text-lg font-semibold text-purple-900 dark:text-purple-50">
+                  Seguridad
+                </h2>
+
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-purple-100 p-4 dark:border-white/10">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-purple-100 dark:bg-white/10">
+                        <Lock className="h-5 w-5 text-purple-700 dark:text-purple-300" />
+                      </span>
+                      <div>
+                        <h3 className="font-medium text-purple-900 dark:text-purple-50">
+                          Cambiar contraseña
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                          Si entras con Google no hace falta.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-purple-200 dark:border-white/15"
+                      onClick={() => setDialogoClave(true)}
+                    >
+                      Cambiar
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-purple-100 p-4 dark:border-white/10">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-purple-100 dark:bg-white/10">
+                        <LogOut className="h-5 w-5 text-purple-700 dark:text-purple-300" />
+                      </span>
+                      <div>
+                        <h3 className="font-medium text-purple-900 dark:text-purple-50">
+                          Cerrar sesión
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                          En este dispositivo.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-full border-purple-200 dark:border-white/15"
+                      onClick={logout}
+                    >
+                      Salir
+                    </Button>
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 p-4 dark:border-rose-400/20">
+                    <div className="flex items-center gap-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-rose-100 dark:bg-rose-400/15">
+                        <Trash2 className="h-5 w-5 text-rose-700 dark:text-rose-300" />
+                      </span>
+                      <div>
+                        <h3 className="font-medium text-purple-900 dark:text-purple-50">
+                          Eliminar cuenta
+                        </h3>
+                        <p className="text-sm text-gray-600 dark:text-purple-100/70">
+                          Se borran tus datos. No se puede deshacer.
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      className="rounded-full"
+                      onClick={() => setDialogoBorrar(true)}
+                    >
+                      Eliminar
+                    </Button>
+                  </div>
+                </div>
+              </section>
+            </TabsContent>
+          </Tabs>
+        </div>
+      </div>
+
+      {/* ── Diálogo: contraseña ───────────────────────────────────────── */}
+      <Dialog open={dialogoClave} onOpenChange={setDialogoClave}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Cambiar contraseña</DialogTitle>
+            <DialogDescription>
+              Escribe la que usas ahora y la nueva.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="c-actual">Contraseña actual</Label>
+              <div className="relative">
+                <Input
+                  id="c-actual"
+                  type={verClave.actual ? "text" : "password"}
+                  value={claves.actual}
+                  onChange={(e) => setClaves({ ...claves, actual: e.target.value })}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  aria-label={verClave.actual ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-purple-100/60"
+                  onClick={() => setVerClave({ ...verClave, actual: !verClave.actual })}
+                >
+                  {verClave.actual ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="c-nueva">Nueva contraseña</Label>
+              <div className="relative">
+                <Input
+                  id="c-nueva"
+                  type={verClave.nueva ? "text" : "password"}
+                  value={claves.nueva}
+                  onChange={(e) => setClaves({ ...claves, nueva: e.target.value })}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  aria-label={verClave.nueva ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-purple-100/60"
+                  onClick={() => setVerClave({ ...verClave, nueva: !verClave.nueva })}
+                >
+                  {verClave.nueva ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="c-repetir">Repetir la nueva</Label>
+              <Input
+                id="c-repetir"
+                type="password"
+                value={claves.repetir}
+                onChange={(e) => setClaves({ ...claves, repetir: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setDialogoClave(false)}>
+              Cancelar
+            </Button>
+            <Button
+              className="rounded-full bg-purple-700 hover:bg-purple-800"
+              onClick={cambiarClave}
+              disabled={cambiandoClave}
+            >
+              {cambiandoClave && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Cambiar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── Diálogo: borrar cuenta ────────────────────────────────────── */}
+      <Dialog open={dialogoBorrar} onOpenChange={setDialogoBorrar}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Eliminar tu cuenta?</DialogTitle>
+            <DialogDescription>
+              Se borran tu nombre, tu correo, tu teléfono y tu dirección. No se puede
+              deshacer. Si tienes pedidos hechos, el historial de esas compras se
+              conserva y la cuenta no se puede borrar desde acá.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" className="rounded-full" onClick={() => setDialogoBorrar(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              className="rounded-full"
+              onClick={borrarCuenta}
+              disabled={borrando}
+            >
+              {borrando && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Sí, eliminar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </AuthGuard>
+  )
+}

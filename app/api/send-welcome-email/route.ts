@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { EMAIL_PUBLICO, correoListo, motivoCorreoNoListo, remitente } from '@/lib/contacto';
 import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
@@ -34,9 +35,14 @@ export async function POST(request: NextRequest) {
     </div>
   `;
 
+	if (!correoListo()) {
+		console.warn(`[send-welcome-email] No pude enviar el correo: ${motivoCorreoNoListo()}`);
+		return NextResponse.json({ success: false, motivo: motivoCorreoNoListo() });
+	}
 	const resend = new Resend(process.env.RESEND_API_KEY);
 	await resend.emails.send({
-		from: 'Mautik <notificaciones@tudominio.com>', // Cambia por tu dominio verificado
+		from: remitente('hola')!,
+		replyTo: EMAIL_PUBLICO,
 		to: email,
 		subject: '¡Bienvenido a Mautik! 🎉',
 		html,

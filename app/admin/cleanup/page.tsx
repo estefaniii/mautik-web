@@ -129,12 +129,12 @@ export default function CleanupPage() {
 
   return (
     <AdminGuard>
-      <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white py-8">
+      <div className="min-h-screen bg-background py-8">
         <div className="container mx-auto px-4">
           <div className="max-w-4xl mx-auto">
             <div className="mb-8">
               <h1 className="text-3xl font-bold text-purple-900 mb-2">Limpieza de localStorage</h1>
-              <p className="text-gray-600">
+              <p className="text-gray-600 dark:text-purple-100/70">
                 Herramienta para limpiar referencias a productos eliminados del localStorage del navegador.
               </p>
             </div>
@@ -220,7 +220,7 @@ export default function CleanupPage() {
                               {detail.error ? (
                                 <p className="text-red-600 text-sm">{detail.error}</p>
                               ) : (
-                                <p className="text-sm text-gray-600">
+                                <p className="text-sm text-gray-600 dark:text-purple-100/70">
                                   Original: {detail.original} | Limpiado: {detail.cleaned} | Eliminados: {detail.removed}
                                 </p>
                               )}
@@ -239,7 +239,7 @@ export default function CleanupPage() {
                   <CardTitle>Información</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2 text-sm text-gray-600">
+                  <div className="space-y-2 text-sm text-gray-600 dark:text-purple-100/70">
                     <p>• Esta herramienta limpia referencias a productos eliminados del localStorage del navegador.</p>
                     <p>• Los IDs deben estar separados por comas (ej: 679, 871, 123).</p>
                     <p>• Se limpian tanto favoritos como carrito de compras.</p>

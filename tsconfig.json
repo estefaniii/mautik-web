@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "strict": true,
-    "jsx": "preserve",
+    "jsx": "react-jsx",
     "baseUrl": ".",
     "paths": {
       "@/*": [
@@ -34,7 +34,8 @@
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx",
-    "app/api/admin/mass-mail/route.ts.disabled"
+    "app/api/admin/mass-mail/route.ts.disabled",
+    ".next/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -1,31 +1,34 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { verifyToken } from '@/lib/auth';
+import { getAuthUser } from '@/lib/auth';
 import bcrypt from 'bcryptjs';
 
-// Uso de 'params' actualizado para Next.js 13+ API routes
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
 
-// Helper function to get token from request
-const getTokenFromRequest = (request: NextRequest): string | null => {
-	// First try to get from Authorization header
-	const authHeader = request.headers.get('authorization');
-	if (authHeader && authHeader.startsWith('Bearer ')) {
-		return authHeader.replace('Bearer ', '');
-	}
-	// Fallback to cookies
-	const cookies = request.cookies;
-	const tokenCookie = cookies.get('auth-token');
-	return tokenCookie?.value || null;
-};
+// En Next.js 16 `params` es una Promise: hay que esperarla antes de leer el id.
+
+/**
+ * ⚠️ Guardar el perfil NUNCA funcionó en producción.
+ *
+ * Estas rutas exigían la cookie `auth-token` (o una cabecera Bearer) y esa
+ * cookie no la tiene nadie: se inicia sesión con NextAuth, que guarda la suya.
+ * Resultado verificado contra el sitio en vivo: `PUT /api/users/<id>` devolvía
+ * 401 "Token de autenticación requerido" con la sesión abierta, así que la
+ * clienta no podía cambiar ni su nombre, ni su teléfono, ni su dirección, ni
+ * su foto. El formulario decía "Perfil actualizado exitosamente"... solo
+ * cuando el servidor no contestaba error, y siempre contestaba error.
+ *
+ * `getAuthUser` resuelve la sesión igual que el resto de la aplicación.
+ */
 
 // PUT - Actualizar perfil del usuario
 export async function PUT(
 	request: NextRequest,
-	context: { params: { id: string } },
+	context: { params: Promise<{ id: string }> },
 ) {
 	try {
-		const { params } = context;
-		const { id } = params;
+		const { id } = await context.params;
 		const body = await request.json();
 		const {
 			name,
@@ -38,16 +41,12 @@ export async function PUT(
 		} = body;
 
 		// Verificar autenticación
-		const token = getTokenFromRequest(request);
-		if (!token) {
+		const decoded = await getAuthUser(request);
+		if (!decoded) {
 			return NextResponse.json(
-				{ error: 'Token de autenticación requerido' },
+				{ error: 'Tienes que iniciar sesión.' },
 				{ status: 401 },
 			);
-		}
-		const decoded = verifyToken(token);
-		if (!decoded) {
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 		}
 		// Verificar que el usuario está actualizando su propio perfil
 		if (decoded.id !== id) {
@@ -140,22 +139,17 @@ export async function PUT(
 // GET - Obtener perfil del usuario
 export async function GET(
 	request: NextRequest,
-	context: { params: { id: string } },
+	context: { params: Promise<{ id: string }> },
 ) {
 	try {
-		const { params } = context;
-		const { id } = params;
+		const { id } = await context.params;
 		// Verificar autenticación
-		const token = getTokenFromRequest(request);
-		if (!token) {
+		const decoded = await getAuthUser(request);
+		if (!decoded) {
 			return NextResponse.json(
-				{ error: 'Token de autenticación requerido' },
+				{ error: 'Tienes que iniciar sesión.' },
 				{ status: 401 },
 			);
-		}
-		const decoded = verifyToken(token);
-		if (!decoded) {
-			return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
 		}
 		// Verificar que el usuario está accediendo a su propio perfil
 		if (decoded.id !== id) {

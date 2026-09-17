@@ -6,13 +6,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Sparkles } from "lucide-react"
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight } from "lucide-react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useAuth } from "@/context/auth-context"
 import { useToast } from "@/hooks/use-toast"
 import Image from "next/image"
-import Head from "next/head"
 
 // Component that handles search params
 function LoginForm() {
@@ -21,6 +20,8 @@ function LoginForm() {
   const { login, register, isLoading, loginWithGoogle } = useAuth()
   const { toast } = useToast()
   
+  const callbackUrl = searchParams.get("callbackUrl") || "/"
+
   const [activeTab, setActiveTab] = useState("login")
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
@@ -74,7 +75,7 @@ function LoginForm() {
           body: JSON.stringify({ email: loginForm.email }),
         })
       } catch {}
-      router.push("/")
+      router.push(callbackUrl)
     } else {
       setFormError(result.error || "Credenciales incorrectas.")
       toast({
@@ -129,7 +130,7 @@ function LoginForm() {
           body: JSON.stringify({ email: registerForm.email, name: registerForm.name }),
         })
       } catch {}
-      router.push("/")
+      router.push(callbackUrl)
     } else {
       setFormError(result.error || "Error al crear la cuenta.")
       toast({
@@ -141,15 +142,36 @@ function LoginForm() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="text-center mb-8">
-          <Link href="/" className="inline-flex items-center space-x-2">
-            <Sparkles className="h-8 w-8 text-purple-600" />
-            <span className="text-3xl font-bold text-purple-900">Mautik</span>
+        {/*
+          El logo de verdad.
+
+          Acá había un destello genérico de la librería de iconos (`Sparkles`)
+          en vez de la marca: la única página del sitio donde Mautik no se
+          presentaba con su propio logo, y justo la primera que ve alguien que
+          se va a registrar. Además "Mautik" iba en `text-purple-900` sin
+          variante oscura, así que en modo oscuro quedaba morado casi negro
+          sobre fondo negro.
+        */}
+        <div className="mb-8 text-center">
+          <Link href="/" className="inline-flex items-center gap-3">
+            <Image
+              src="/logo-marca.png"
+              alt="Mautik"
+              width={44}
+              height={44}
+              priority
+              className="h-11 w-11 rounded-xl"
+            />
+            <span className="text-3xl font-bold text-purple-900 dark:text-purple-100">
+              Mautik
+            </span>
           </Link>
-          <p className="text-gray-600 mt-2">Accede a tu cuenta o crea una nueva</p>
+          <p className="mt-2 text-gray-600 dark:text-purple-100/70">
+            Accede a tu cuenta o crea una nueva
+          </p>
         </div>
 
         <Card className="shadow-xl border-0">
@@ -210,7 +232,7 @@ function LoginForm() {
                       <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-purple-100/70"
                         aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                       >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -260,7 +282,7 @@ function LoginForm() {
                         title: "¡Bienvenido!",
                         description: "Has iniciado sesión con Google exitosamente.",
                       })
-                      router.push("/")
+                      router.push(callbackUrl)
                     } else {
                       toast({
                         title: "Error de inicio de sesión",
@@ -280,7 +302,7 @@ function LoginForm() {
                   </svg>
                   Iniciar sesión con Google
                 </Button>
-                <div className="text-center text-sm text-gray-600 mt-4">
+                <div className="text-center text-sm text-gray-600 dark:text-purple-100/70 mt-4">
                   Al crear una cuenta, aceptas nuestros{" "}
                   <Link href="/terms-of-service" className="text-purple-600 hover:text-purple-700">
                     Términos de Servicio
@@ -349,7 +371,7 @@ function LoginForm() {
                       <button
                         type="button"
                         onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:text-purple-100/70"
                         aria-label={showConfirmPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                       >
                         {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -414,7 +436,7 @@ function LoginForm() {
                         title: "¡Bienvenido!",
                         description: "Has iniciado sesión con Google exitosamente.",
                       })
-                      router.push("/")
+                      router.push(callbackUrl)
                     } else {
                       toast({
                         title: "Error de inicio de sesión",
@@ -434,7 +456,7 @@ function LoginForm() {
                   </svg>
                   Registrarse con Google
                 </Button>
-                <div className="text-center text-sm text-gray-600 mt-4">
+                <div className="text-center text-sm text-gray-600 dark:text-purple-100/70 mt-4">
                   Al crear una cuenta, aceptas nuestros{" "}
                   <Link href="/terms-of-service" className="text-purple-600 hover:text-purple-700">
                     Términos de Servicio
@@ -457,12 +479,10 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <>
-      <Head>
-        <title>Iniciar sesión o registrarse | Mautik</title>
-        <meta name="description" content="Accede a tu cuenta o crea una nueva en Mautik. Compra productos únicos y gestiona tus pedidos fácilmente." />
-      </Head>
+      {/* Los metadatos salen de app/login/layout.tsx: `next/head` es
+          API del Pages Router y en el App Router no hace absolutamente nada. */}
       <Suspense fallback={
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-pink-50 flex items-center justify-center">
+        <div className="min-h-screen bg-background flex items-center justify-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
         </div>
       }>

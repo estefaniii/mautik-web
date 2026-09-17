@@ -139,7 +139,7 @@ export default function AnalyticsPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Error al cargar analytics</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-purple-50 mb-4">Error al cargar analytics</h1>
           <Button onClick={fetchAnalytics}>Reintentar</Button>
         </div>
       </div>
@@ -151,8 +151,8 @@ export default function AnalyticsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Analytics</h1>
-          <p className="text-gray-600">Métricas y reportes de ventas</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-purple-50">Analytics</h1>
+          <p className="text-gray-600 dark:text-purple-100/70">Métricas y reportes de ventas</p>
         </div>
         <Select value={timeRange} onValueChange={setTimeRange}>
           <SelectTrigger className="w-32">
@@ -264,7 +264,7 @@ export default function AnalyticsPage() {
                     </Badge>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-gray-900 dark:text-purple-50 truncate">
                       {item.product?.name || 'Producto no encontrado'}
                     </p>
                     <p className="text-xs text-gray-500">
@@ -272,7 +272,7 @@ export default function AnalyticsPage() {
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
+                    <p className="text-sm font-medium text-gray-900 dark:text-purple-50">
                       {item._sum.sales} vendidos
                     </p>
                     <p className="text-xs text-gray-500">

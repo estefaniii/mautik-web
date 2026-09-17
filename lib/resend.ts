@@ -1,133 +1,224 @@
 import { Resend } from 'resend';
+import {
+	EMAIL_PUBLICO,
+	MARCA,
+	correoListo,
+	motivoCorreoNoListo,
+	remitente,
+	sitioUrl,
+} from '@/lib/contacto';
 
 export const resend = process.env.RESEND_API_KEY
 	? new Resend(process.env.RESEND_API_KEY)
 	: null;
 
-export const sendOrderConfirmationEmail = async (orderData: {
+export interface DatosPedidoEmail {
 	customerName: string;
 	customerEmail: string;
 	orderItems: Array<{ name: string; quantity: number; price: number }>;
 	shippingAddress: any;
-	paymentMethod: any;
+	/** 'yappy' | 'paypal' | { brand, last4 } | string */
+	paymentMethod?: any;
 	totalAmount: number;
 	orderId?: string;
-}) => {
-	try {
-		const {
-			customerName,
-			customerEmail,
-			orderItems,
-			shippingAddress,
-			paymentMethod,
-			totalAmount,
-		} = orderData;
+	/** Si no se pasa, el envío se deduce como total - subtotal. */
+	shippingCost?: number;
+}
 
+const dinero = (n: number) => `$${Number(n || 0).toFixed(2)}`;
+
+/** Escapa el contenido que viene del usuario para no romper el HTML del correo. */
+const esc = (v: unknown) =>
+	String(v ?? '')
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;')
+		.replace(/"/g, '&quot;');
+
+function nombreMetodoPago(pm: any): string {
+	if (!pm) return 'Por confirmar';
+	if (typeof pm === 'string') {
+		const k = pm.toLowerCase();
+		if (k === 'yappy') return 'Yappy';
+		if (k === 'paypal') return 'PayPal';
+		return pm;
+	}
+	if (pm.brand && pm.last4 && pm.last4 !== '****' && pm.last4 !== 'N/A') {
+		return `${pm.brand} •••• ${pm.last4}`;
+	}
+	if (pm.brand && pm.brand !== 'N/A') return nombreMetodoPago(pm.brand);
+	return 'Por confirmar';
+}
+
+function bloqueDireccion(d: any): string {
+	if (!d) return '';
+	const lineas = [
+		d.street,
+		[d.city, d.state ?? d.province].filter(Boolean).join(', '),
+		[d.country, d.zipCode].filter(Boolean).join(' '),
+		d.phone ? `Tel: ${d.phone}` : '',
+	]
+		.filter(Boolean)
+		.map(esc);
+	if (!lineas.length) return '';
+	return `
+      <h3 style="margin:28px 0 8px;font-size:15px;color:#111827">Dirección de envío</h3>
+      <p style="margin:0;font-size:14px;line-height:1.6;color:#4b5563">${lineas.join('<br>')}</p>`;
+}
+
+export const sendOrderConfirmationEmail = async (orderData: DatosPedidoEmail) => {
+	const {
+		customerName,
+		customerEmail,
+		orderItems,
+		shippingAddress,
+		paymentMethod,
+		totalAmount,
+		orderId,
+	} = orderData;
+
+	if (!correoListo() || !resend) {
+		console.warn(
+			`[resend] No envío la confirmación del pedido ${orderId ?? '(sin id)'}: ${motivoCorreoNoListo()}`,
+		);
+		return false;
+	}
+
+	const from = remitente('pedidos');
+	if (!from) return false;
+
+	try {
 		const subtotal = orderItems.reduce(
 			(sum, item) => sum + item.price * item.quantity,
 			0,
 		);
-		const shipping = 10;
+		// El envío real sale del total del pedido, no de un valor fijo.
+		const envio =
+			orderData.shippingCost ?? Math.max(0, Number((totalAmount - subtotal).toFixed(2)));
+		const url = sitioUrl();
 
-		if (!resend) {
-			console.warn('Resend no configurado, saltando envío de email');
-			return false;
-		}
+		const filas = orderItems
+			.map(
+				(item) => `
+                <tr>
+                  <td style="padding:10px 0;border-bottom:1px solid #eef0f3;font-size:14px;color:#374151">
+                    ${esc(item.name)} <span style="color:#9ca3af">× ${item.quantity}</span>
+                  </td>
+                  <td style="padding:10px 0;border-bottom:1px solid #eef0f3;font-size:14px;color:#111827;text-align:right;white-space:nowrap">
+                    ${dinero(item.price * item.quantity)}
+                  </td>
+                </tr>`,
+			)
+			.join('');
 
-		const result = await resend.emails.send({
-			from: 'Tu Tienda <noreply@tu-dominio.com>', // Cambiar por tu dominio verificado
+		const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Confirmación de tu pedido en ${MARCA.nombre}</title>
+</head>
+<body style="margin:0;padding:0;background:#f4f4f6;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif">
+  <div style="display:none;max-height:0;overflow:hidden">Tu pedido en ${MARCA.nombre} quedó confirmado por ${dinero(totalAmount)}.</div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f6">
+    <tr>
+      <td align="center" style="padding:24px 12px">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:14px;overflow:hidden">
+
+          <tr>
+            <td style="background:linear-gradient(135deg,${MARCA.color},${MARCA.colorOscuro});padding:32px 28px;text-align:center">
+              <h1 style="margin:0;font-size:24px;color:#ffffff;font-weight:700">¡Gracias por tu compra!</h1>
+              <p style="margin:8px 0 0;font-size:15px;color:#e9d8fd">Tu pedido quedó confirmado</p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px">
+              <p style="margin:0 0 6px;font-size:16px;color:#111827">Hola ${esc(customerName)},</p>
+              <p style="margin:0 0 22px;font-size:14px;line-height:1.6;color:#4b5563">
+                Recibimos tu pedido y ya empezamos a prepararlo. Cada pieza de ${MARCA.nombre} se hace
+                a mano en ${MARCA.ciudad}, así que te escribimos en cuanto esté listo para enviar.
+              </p>
+
+              ${
+								orderId
+									? `<p style="margin:0 0 22px;font-size:13px;color:#6b7280">
+                       Número de pedido: <strong style="color:#111827">${esc(orderId)}</strong>
+                     </p>`
+									: ''
+							}
+
+              <h3 style="margin:0 0 8px;font-size:15px;color:#111827">Resumen del pedido</h3>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                ${filas}
+                <tr>
+                  <td style="padding:12px 0 4px;font-size:14px;color:#6b7280">Subtotal</td>
+                  <td style="padding:12px 0 4px;font-size:14px;color:#374151;text-align:right">${dinero(subtotal)}</td>
+                </tr>
+                <tr>
+                  <td style="padding:0 0 12px;font-size:14px;color:#6b7280">Envío</td>
+                  <td style="padding:0 0 12px;font-size:14px;color:#374151;text-align:right">${
+										envio > 0 ? dinero(envio) : 'Por coordinar'
+									}</td>
+                </tr>
+                <tr>
+                  <td style="padding:12px 0;border-top:2px solid ${MARCA.color};font-size:16px;font-weight:700;color:#111827">Total</td>
+                  <td style="padding:12px 0;border-top:2px solid ${MARCA.color};font-size:16px;font-weight:700;color:#111827;text-align:right">${dinero(totalAmount)}</td>
+                </tr>
+              </table>
+
+              ${bloqueDireccion(shippingAddress)}
+
+              <h3 style="margin:28px 0 8px;font-size:15px;color:#111827">Método de pago</h3>
+              <p style="margin:0;font-size:14px;color:#4b5563">${esc(nombreMetodoPago(paymentMethod))}</p>
+
+              <div style="text-align:center;margin:32px 0 8px">
+                <a href="${url}/orders" style="display:inline-block;background:${MARCA.color};color:#ffffff;padding:13px 26px;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;margin:4px">Ver mi pedido</a>
+                <a href="${url}/shop" style="display:inline-block;background:#f3f4f6;color:#111827;padding:13px 26px;text-decoration:none;border-radius:8px;font-size:14px;font-weight:600;margin:4px">Seguir comprando</a>
+              </div>
+
+              <p style="margin:22px 0 0;font-size:14px;line-height:1.6;color:#4b5563">
+                ¿Alguna duda? Responde este correo o escríbenos por Instagram
+                <a href="${MARCA.instagramUrl}" style="color:${MARCA.color};text-decoration:none">${MARCA.instagram}</a>.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="background:#fafafb;padding:22px 28px;text-align:center;border-top:1px solid #eef0f3">
+              <p style="margin:0 0 4px;font-size:13px;color:#6b7280">
+                ${MARCA.nombre} · Artesanía hecha a mano en ${MARCA.ciudad}, ${MARCA.provincia}, ${MARCA.pais}
+              </p>
+              <p style="margin:0 0 4px;font-size:13px;color:#6b7280">
+                <a href="mailto:${EMAIL_PUBLICO}" style="color:${MARCA.color};text-decoration:none">${EMAIL_PUBLICO}</a>
+              </p>
+              <p style="margin:8px 0 0;font-size:11px;color:#9ca3af">
+                Te enviamos este correo a ${esc(customerEmail)} porque hiciste un pedido en ${MARCA.nombre}.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
+		await resend.emails.send({
+			from,
 			to: [customerEmail],
-			subject: '¡Gracias por tu compra! - Confirmación de pedido',
-			html: `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset=utf-8>        <meta name=viewport" content="width=device-width, initial-scale=1.0">
-          <title>Confirmación de pedido</title>
-          <style>
-            body { font-family: Arial, sans-serif; line-height:1.6olor: #333; margin:0: 0        .container [object Object] max-width: 600px; margin: 0 auto; background: #fff; }
-            .header { background: linear-gradient(135deg, #667ea 06400or: white; padding:30text-align: center; }
-            .content { padding: 30x; }
-            .order-summary [object Object] background: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0
-            .item { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1eee; }
-            .total { font-weight: bold; font-size: 18px; margin-top: 15x; padding-top: 15x; border-top: 2 solid #667eea; }
-            .address-box [object Object] background: #e3f2fd; border-radius: 8px; padding: 15px; margin: 15px 0          .payment-box [object Object] background: #f3e5f5; border-radius: 8px; padding: 15px; margin: 15px 0           .button { display: inline-block; background: #667eea; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; margin: 10px 5x; }
-            .footer [object Object] background: #f89fa; padding:20text-align: center; color: #666; font-size:14px; }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header>
-              <h1>¡Gracias por tu compra!</h1>
-              <p>Tu pedido ha sido confirmado exitosamente</p>
-            </div>
-            
-            <div class="content>
-              <h2>Hola $[object Object]customerName},</h2>
-              <p>Gracias por confiar en nosotros. Tu pedido ha sido procesado y pronto comenzaremos a prepararlo.</p>
-              
-              <div class="order-summary>
-                <h3>Resumen del pedido</h3                ${orderItems
-									.map(
-										(item) => `
-                  <div class="item">
-                    <span>${item.name} x${item.quantity}</span>
-                    <span>$${(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                `,
-									)
-									.join('')}
-                
-                <div class="item">
-                  <span>Subtotal</span>
-                  <span>$$[object Object]subtotal.toFixed(2)}</span>
-                </div>
-                <div class="item">
-                  <span>Envío</span>
-                  <span>$$[object Object]shipping.toFixed(2)}</span>
-                </div>
-                <div class="total">
-                  <span>Total</span>
-                  <span>$${totalAmount.toFixed(2)}</span>
-                </div>
-              </div>
-              
-              <div class="address-box>
-                <h4>Dirección de envío</h4
-                <p>${shippingAddress.street}<br>
-                ${shippingAddress.city}, ${shippingAddress.state} ${shippingAddress.zipCode}<br>
-                ${shippingAddress.country}<br>
-                Tel: ${shippingAddress.phone}</p>
-              </div>
-              
-              <div class="payment-box>
-                <h4>Método de pago</h4
-                <p>${paymentMethod.brand} •••• ${paymentMethod.last4}</p>
-              </div>
-              
-              <div style="text-align: center; margin: 30px 0;>
-                <a href="/orders" class="button">Ver mis pedidos</a>
-                <a href="/shop" class="button" style="background: #28a745;>Seguir comprando</a>
-              </div>
-              
-              <p>Si tienes alguna pregunta, no dudes en contactarnos.</p>
-              <p>¡Gracias por elegirnos!</p>
-            </div>
-            
-            <div class="footer>
-              <p>© 2024 Tienda. Todos los derechos reservados.</p>
-              <p>Este email fue enviado a ${customerEmail}</p>
-            </div>
-          </div>
-        </body>
-        </html>
-      `,
+			replyTo: EMAIL_PUBLICO,
+			subject: orderId
+				? `Pedido confirmado · ${MARCA.nombre} (${orderId.slice(0, 8)})`
+				: `¡Gracias por tu compra en ${MARCA.nombre}!`,
+			html,
 		});
 
-		console.log('Email de confirmación enviado exitosamente:', result);
+		console.log(`[resend] Confirmación enviada para el pedido ${orderId ?? '(sin id)'}`);
 		return true;
 	} catch (error) {
-		console.error('Error enviando email de confirmación:', error);
+		console.error('[resend] Error enviando la confirmación de pedido:', error);
 		return false;
 	}
 };

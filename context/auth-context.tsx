@@ -13,6 +13,7 @@ interface User {
   address?: any
   phone?: string
   updatedAt?: string
+  createdAt?: string
 }
 
 interface AuthContextType {
@@ -61,6 +62,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       setUser(userData)
       setIsAuthenticated(true)
+
+      /*
+        La sesión de NextAuth trae nombre, correo y foto, y nada más.
+
+        El teléfono, la dirección y la fecha de alta viven en la base, así que
+        el perfil los mostraba SIEMPRE vacíos ("Calle: -", "Miembro desde
+        Reciente") aunque la clienta los hubiera guardado: al recargar la
+        página volvían a perderse, porque nadie los iba a buscar. Se completan
+        acá, una vez, desde /api/auth/me.
+      */
+      fetch('/api/auth/me', { credentials: 'include' })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (!d?.isAuthenticated || !d.user) return
+          setUser((previo) =>
+            previo
+              ? {
+                  ...previo,
+                  phone: d.user.phone ?? previo.phone,
+                  address: d.user.address ?? previo.address,
+                  createdAt: d.user.createdAt ?? previo.createdAt,
+                  avatar: previo.avatar || d.user.avatar,
+                }
+              : previo,
+          )
+        })
+        .catch(() => {})
     } else {
       setUser(null)
       setIsAuthenticated(false)
@@ -105,12 +133,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise(res => setTimeout(res, 500));
       const session = await import('next-auth/react').then(m => m.getSession());
       if (session?.user?.email) {
-        // Solicita el JWT y guarda la cookie
-        await fetch('/api/auth/issue-jwt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: session.user.email }),
-        });
+        // Pide la cookie auth-token. NO se manda el email: la ruta lo saca de
+        // la sesión verificada en el servidor. Antes se mandaba desde acá, y
+        // eso era justamente el agujero: cualquiera podía pedir el token de
+        // otra persona con solo poner su correo.
+        await fetch('/api/auth/issue-jwt', { method: 'POST', credentials: 'include' });
       }
 
       return { success: true }
