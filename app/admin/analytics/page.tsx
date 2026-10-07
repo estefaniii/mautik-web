@@ -70,7 +70,7 @@ export default function AnalyticsPage() {
     return (
       <div className={`flex items-center ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
         {isPositive ? <TrendingUp className="h-4 w-4 mr-1" /> : <TrendingDown className="h-4 w-4 mr-1" />}
-        <span className="font-semibold">{Math.abs(growth).toFixed(1)}%</span>
+        <span className="font-semibold">{Math.abs(Number(growth) || 0).toFixed(1)}%</span>
       </div>
     )
   }

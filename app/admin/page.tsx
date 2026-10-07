@@ -299,6 +299,12 @@ interface User {
   createdAt?: Date
 }
 
+/** Formatea montos sin romper el panel si el dato viene vacío o como texto. */
+const dinero = (v: unknown, dec = 2) => {
+  const n = Number(v)
+  return (Number.isFinite(n) ? n : 0).toFixed(dec)
+}
+
 interface Order {
   _id?: string
   id?: string
@@ -308,7 +314,8 @@ interface Order {
     quantity: number
     price: number
   }>
-  total: number
+  total?: number
+  totalAmount?: number | null
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'
   isPaid?: boolean
   createdAt: Date
@@ -658,8 +665,8 @@ export default function AdminPage() {
                 cajas grises iguales donde el dato no resaltaba. */}
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               {[
-                { t: "Ventas totales", v: `$${metrics.totalSales.toFixed(2)}`,
-                  d: `${metrics.salesGrowth > 0 ? "+" : ""}${metrics.salesGrowth.toFixed(1)}% vs. mes pasado`,
+                { t: "Ventas totales", v: `$${dinero(metrics.totalSales)}`,
+                  d: `${metrics.salesGrowth > 0 ? "+" : ""}${dinero(metrics.salesGrowth, 1)}% vs. mes pasado`,
                   I: DollarSign, c: "bg-emerald-100 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300" },
                 { t: "Pedidos por atender", v: String(metrics.pendingOrders),
                   d: metrics.pendingOrders > 0 ? "Necesitan que los envíes" : "Todo al día",
@@ -828,7 +835,7 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell className="flex items-center gap-2 py-1 sm:table-cell sm:py-3">
                             
-                            ${product.price.toFixed(2)}
+                            ${dinero(product.price)}
                           </TableCell>
                           <TableCell className="flex flex-wrap items-center gap-1.5 py-0.5 sm:table-cell sm:py-3">
                             {/* En móvil, stock y etiquetas comparten esta misma
@@ -1084,20 +1091,20 @@ export default function AdminPage() {
                           <TableCell className="absolute left-3 top-3 p-0 sm:static sm:table-cell sm:py-3">
                             <span className="w-20 shrink-0 text-xs text-gray-500 dark:text-purple-100/50 sm:hidden">Cliente:</span>
                             <div>
-                              <p className="font-medium">{order.user.name}</p>
-                              <p className="text-sm text-muted-foreground">{order.user.email}</p>
+                              <p className="font-medium">{order.user?.name ?? "Invitada"}</p>
+                              <p className="text-sm text-muted-foreground">{order.user?.email ?? ""}</p>
                             </div>
                           </TableCell>
                           <TableCell className="flex items-center gap-2 py-1 sm:table-cell sm:py-3">
                             <span className="w-20 shrink-0 text-xs text-gray-500 dark:text-purple-100/50 sm:hidden">Productos:</span>
                             <div className="text-sm">
-                              {order.items.length} productos
+                              {order.items?.length ?? 0} productos
                             </div>
                           </TableCell>
                           <TableCell className="flex items-center gap-2 py-1 sm:table-cell sm:py-3">
                             <span className="w-20 shrink-0 text-xs text-gray-500 dark:text-purple-100/50 sm:hidden">Total:</span>
                             <div className="font-medium">
-                              ${order.total.toFixed(2)}
+                              ${dinero(order.totalAmount ?? order.total)}
                             </div>
                           </TableCell>
                           <TableCell className="flex items-center gap-2 py-1 sm:table-cell sm:py-3">
@@ -1266,7 +1273,7 @@ export default function AdminPage() {
             <div className="grid gap-4 sm:grid-cols-3">
               {[
                 { t: "Ticket promedio", v: lista(orders).filter((o: any) => o?.isPaid).length > 0
-                    ? `$${(metrics.totalSales / lista(orders).filter((o: any) => o?.isPaid).length).toFixed(2)}` : "—",
+                    ? `$${dinero(Number(metrics.totalSales) / lista(orders).filter((o: any) => o?.isPaid).length)}` : "—",
                   d: "Por pedido pagado" },
                 { t: "Pedidos totales", v: String(lista(orders).length), d: "Desde que abrió la tienda" },
                 { t: "Productos agotados", v: String(lista(products).filter((p: any) => Number(p?.stock) === 0).length),

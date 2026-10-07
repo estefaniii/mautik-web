@@ -402,7 +402,7 @@ function ProductsContent() {
                       <span className="capitalize text-sm">{product.category}</span>
                     </TableCell>
                     <TableCell>
-                      <span className="font-medium">${product.price.toFixed(2)}</span>
+                      <span className="font-medium">${Number(product.price ?? 0).toFixed(2)}</span>
                       {product.discount > 0 && (
                         <span className="ml-1 text-xs text-green-600">-{product.discount}%</span>
                       )}
