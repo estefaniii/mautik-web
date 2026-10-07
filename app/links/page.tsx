@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
-import { Anton } from "next/font/google"
+import { Montserrat } from "next/font/google"
 import { Instagram, Facebook, Youtube, MessageCircle, ShoppingBag, Mail, MapPin, Clock, Heart, ArrowUpRight } from "lucide-react"
 import { EMAIL_PUBLICO, enlaceWhatsapp } from "@/lib/contacto"
 
@@ -9,12 +9,10 @@ import { EMAIL_PUBLICO, enlaceWhatsapp } from "@/lib/contacto"
   Página del enlace de la bio (antes era un linktree aparte en
   mautik.vercel.app; ahora vive dentro de la tienda).
 
-  Tipografía: la marca pidió Heading Now (pesos 71–78), que es comercial y no
-  está en Google Fonts. Mientras no haya licencia se usa Anton, la condensada
-  pesada gratuita más parecida. Para cambiarla: poner los .woff2 en
-  app/fonts/ y cambiar `Anton(...)` por `localFont({ src: ... })`.
+  Tipografía de los títulos: Montserrat (elegida por la marca en vez de
+  Heading Now, que es comercial).
 */
-const titular = Anton({ weight: "400", subsets: ["latin"], display: "swap" })
+const titular = Montserrat({ weight: ["700", "800"], subsets: ["latin"], display: "swap" })
 
 export const metadata: Metadata = {
   title: "Mautik · Enlaces",
@@ -67,7 +65,7 @@ export default function LinksPage() {
             />
           </div>
 
-          <h1 className={`${titular.className} mt-6 text-6xl uppercase leading-none tracking-[0.04em] text-[#F3E8FF] sm:text-7xl`}>
+          <h1 className={`${titular.className} mt-6 text-5xl font-extrabold uppercase leading-none tracking-[0.06em] text-[#F3E8FF] sm:text-6xl`}>
             Mautik
           </h1>
           <p className="mt-3 text-sm font-medium uppercase tracking-[0.25em] text-violet-200/90">
@@ -86,7 +84,7 @@ export default function LinksPage() {
               <ShoppingBag className="h-5 w-5" aria-hidden />
             </span>
             <span className="text-left">
-              <span className={`${titular.className} block text-xl uppercase tracking-wide`}>Ver la tienda</span>
+              <span className={`${titular.className} block text-lg font-extrabold uppercase tracking-wide`}>Ver la tienda</span>
               <span className="block text-xs font-medium text-[#4C1D95]/80">Paga con Yappy o PayPal</span>
             </span>
           </span>
@@ -119,21 +117,21 @@ export default function LinksPage() {
 
         {/* Muestra de productos */}
         <section aria-labelledby="hecho-a-mano" className="mt-10">
-          <h2 id="hecho-a-mano" className={`${titular.className} text-center text-2xl uppercase tracking-wide text-violet-100`}>
-            Recién salidos del gancho
+          <h2 id="hecho-a-mano" className={`${titular.className} text-center text-xl font-bold tracking-wide text-violet-100`}>
+            Nuestros diseños
           </h2>
-          <div className="mt-4 grid grid-cols-4 gap-2">
+          <div className="mt-4 grid grid-cols-2 gap-3">
             {fotos.map((f) => (
               <Link
                 key={f.src}
                 href="/shop"
-                className="group relative aspect-square overflow-hidden rounded-xl ring-1 ring-white/15"
+                className="group relative aspect-square overflow-hidden rounded-2xl ring-1 ring-white/15"
               >
                 <Image
                   src={f.src}
                   alt={f.alt}
                   fill
-                  sizes="(max-width: 448px) 25vw, 110px"
+                  sizes="(max-width: 448px) 50vw, 220px"
                   className="object-cover transition duration-500 group-hover:scale-110"
                 />
               </Link>
@@ -153,7 +151,7 @@ export default function LinksPage() {
           </div>
           <div className="flex flex-col items-center gap-1.5 rounded-xl bg-white/[0.05] px-2 py-3">
             <Clock className="h-4 w-4 text-fuchsia-200" aria-hidden />
-            <span className="leading-tight">Lun–Sáb<br />9:00 a. m.–6:00 p. m.</span>
+            <span className="leading-tight">Lun a sáb<br />9 a. m. – 6 p. m.</span>
           </div>
         </section>
 
