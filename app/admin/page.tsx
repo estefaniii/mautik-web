@@ -181,7 +181,7 @@ function FormularioCorreos() {
                 { t: "Negrita", ins: "<b>texto</b>" },
                 { t: "Título", ins: '<h2 style="color:#5b21b6;font-size:18px;">Título</h2>' },
                 { t: "Párrafo", ins: "<p>Escribí acá…</p>" },
-                { t: "Botón", ins: '<a href="https://mautik-web.vercel.app/shop" style="display:inline-block;padding:12px 24px;background:#5b21b6;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;">Ver la tienda</a>' },
+                { t: "Botón", ins: '<a href="https://mautik.vercel.app/shop" style="display:inline-block;padding:12px 24px;background:#5b21b6;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;">Ver la tienda</a>' },
                 { t: "Separador", ins: '<hr style="border:none;border-top:1px solid #e9e2f5;margin:20px 0;">' },
               ].map((b) => (
                 <button key={b.t} type="button"

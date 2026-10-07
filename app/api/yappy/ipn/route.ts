@@ -6,7 +6,7 @@ import {
 	type EstadoYappy,
 } from '@/lib/payments/yappy';
 import { marcarCuponUsado } from '@/lib/payments/cupones';
-import { sendOrderConfirmationEmail } from '@/lib/resend';
+import { sendOrderConfirmationEmail, sendNewOrderNotification } from '@/lib/resend';
 import { prisma } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -139,6 +139,28 @@ async function procesar(datos: {
 				console.error('[yappy/ipn] no se pudo mandar el correo:', errorCorreo);
 			}
 		}
+			/* Y el aviso a la tienda, para que Estéfani se entere de la venta
+			   sin tener que estar mirando el panel. */
+			try {
+				const nombres2 = new Map(productos.map((p) => [p.id, p.name]));
+				await sendNewOrderNotification({
+					estado: 'pagado',
+					customerName: pedido.user?.name || 'Cliente',
+					customerEmail: pedido.user?.email || '',
+					orderItems: pedido.items.map((i) => ({
+						name: nombres2.get(i.productId) || 'Producto',
+						quantity: i.quantity,
+						price: i.price,
+					})),
+					shippingAddress: pedido.shippingAddress as any,
+					paymentMethod: 'yappy',
+					totalAmount: pedido.totalAmount ?? 0,
+					orderId: pedido.id,
+				});
+			} catch (e) {
+				console.error('[aviso-tienda] no se pudo avisar:', e);
+			}
+
 	} else {
 		await prisma.order.updateMany({
 			where: { id: orderId, isPaid: false },

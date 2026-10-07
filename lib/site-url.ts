@@ -12,7 +12,7 @@
  * estemos en desarrollo. Así el sitio queda correcto aunque el .env esté mal.
  */
 
-const PRODUCCION_POR_DEFECTO = "https://mautik-web.vercel.app";
+const PRODUCCION_POR_DEFECTO = "https://mautik.vercel.app";
 
 const esLocal = (u: string) =>
   /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])(:\d+)?/i.test(u);

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { exigirAdmin } from '@/lib/solo-admin';
 import { marcarCuponUsado } from '@/lib/payments/cupones';
-import { sendOrderConfirmationEmail } from '@/lib/resend';
+import { sendOrderConfirmationEmail, sendNewOrderNotification } from '@/lib/resend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -101,6 +101,29 @@ export async function POST(
 		} catch (e) {
 			console.error('[confirmar-pago] el correo falló:', e);
 		}
+	}
+
+	/* Acá el aviso va igual, aunque lo haya confirmado ella misma: deja
+	   constancia en el correo de la venta, con los datos de la clienta y lo
+	   que compró, sin tener que ir al panel a buscarlo. */
+	try {
+		const nombres2 = new Map(productos.map((p) => [p.id, p.name]));
+		await sendNewOrderNotification({
+			estado: 'pagado',
+			customerName: pedido.user?.name || 'Cliente',
+			customerEmail: pedido.user?.email || '',
+			orderItems: pedido.items.map((i) => ({
+				name: nombres2.get(i.productId) || 'Producto',
+				quantity: i.quantity,
+				price: i.price,
+			})),
+			shippingAddress: pedido.shippingAddress as any,
+			paymentMethod: 'yappy',
+			totalAmount: pedido.totalAmount ?? 0,
+			orderId: pedido.id,
+		});
+	} catch (e) {
+		console.error('[aviso-tienda] no se pudo avisar:', e);
 	}
 
 	return NextResponse.json({

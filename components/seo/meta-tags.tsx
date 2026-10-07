@@ -40,12 +40,12 @@ export default function MetaTags({
   description = 'Descubre piezas únicas hechas a mano y productos seleccionados cuidadosamente. Joyería, crochet, decoración y más.',
   keywords = 'artesanía, diseño, joyería, crochet, accesorios, curaduría, panamá, tienda online, hecho a mano, productos seleccionados',
   image = '/maar.png',
-  url = 'https://mautik-web.vercel.app',
+  url = 'https://mautik.vercel.app',
   type = 'website',
   product
 }: MetaTagsProps) {
   const fullTitle = title === 'Mautik - Artesanía Panameña' ? title : `${title} | Mautik`
-  const fullUrl = url.startsWith('http') ? url : `https://mautik-web.vercel.app${url}`
+  const fullUrl = url.startsWith('http') ? url : `https://mautik.vercel.app${url}`
 
   return (
     <Head>
@@ -63,7 +63,7 @@ export default function MetaTags({
       {/* Open Graph Tags */}
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
-      <meta property="og:image" content={image.startsWith('http') ? image : `https://mautik-web.vercel.app${image}`} />
+      <meta property="og:image" content={image.startsWith('http') ? image : `https://mautik.vercel.app${image}`} />
       <meta property="og:url" content={fullUrl} />
       <meta property="og:type" content={type} />
       <meta property="og:site_name" content="Mautik" />
@@ -73,7 +73,7 @@ export default function MetaTags({
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image.startsWith('http') ? image : `https://mautik-web.vercel.app${image}`} />
+      <meta name="twitter:image" content={image.startsWith('http') ? image : `https://mautik.vercel.app${image}`} />
       
       {/* Product Schema Markup */}
       {product && (
@@ -85,7 +85,7 @@ export default function MetaTags({
               "@type": "Product",
               "name": product.name,
               "description": description,
-              "image": image.startsWith('http') ? image : `https://mautik-web.vercel.app${image}`,
+              "image": image.startsWith('http') ? image : `https://mautik.vercel.app${image}`,
               "offers": {
                 "@type": "Offer",
                 "price": product.price,
@@ -111,8 +111,8 @@ export default function MetaTags({
             "@context": "https://schema.org",
             "@type": "Organization",
             "name": "Mautik",
-            "url": "https://mautik-web.vercel.app",
-            "logo": "https://mautik-web.vercel.app/maar.png",
+            "url": "https://mautik.vercel.app",
+            "logo": "https://mautik.vercel.app/maar.png",
             "description": "Artesanía panameña hecha a mano con pasión y dedicación",
             "address": {
               "@type": "PostalAddress",

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { capturarOrden, paypalEstaConfigurado } from '@/lib/payments/paypal';
 import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { sendOrderConfirmationEmail } from '@/lib/resend';
+import { sendOrderConfirmationEmail, sendNewOrderNotification } from '@/lib/resend';
 import { marcarCuponUsado } from '@/lib/payments/cupones';
 
 export const runtime = 'nodejs';
@@ -154,6 +154,29 @@ export async function POST(request: NextRequest) {
 		} catch (errorCorreo) {
 			// El pago ya está hecho: un correo que falla no puede tumbar la compra.
 			console.error('[paypal/capture] no se pudo mandar el correo:', errorCorreo);
+		}
+
+		/* Aviso a la tienda: antes solo se le escribía a la clienta, así que
+		   Estéfani tenía que entrar al panel para enterarse de una venta. */
+		try {
+			const nombres2 = new Map(productos.map((p) => [p.id, p.name]));
+			await sendNewOrderNotification({
+				estado: 'pagado',
+				customerName: usuario.name || 'Cliente',
+				customerEmail: usuario.email,
+				customerPhone: (usuario as any).phone || undefined,
+				orderItems: pedido.items.map((i) => ({
+					name: nombres2.get(i.productId) || 'Producto',
+					quantity: i.quantity,
+					price: i.price,
+				})),
+				shippingAddress: pedido.shippingAddress as any,
+				paymentMethod: 'paypal',
+				totalAmount: pedido.totalAmount ?? captura.montoCobrado,
+				orderId: pedido.id,
+			});
+		} catch (e) {
+			console.error('[aviso-tienda] no se pudo avisar:', e);
 		}
 
 		return NextResponse.json({ ok: true, captureId: captura.captureId });

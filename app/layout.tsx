@@ -5,6 +5,7 @@ import { SkipLinks } from "@/components/ui/accessibility"
 import { Toaster } from "@/components/ui/toaster"
 import Navbar from "@/components/navbar"
 import Footer from "@/components/footer"
+import MarcoSitio from "@/components/marco-sitio"
 import ClientProviders from "./client-providers"
 import { grafo, negocioLocal, sitioWeb } from "@/lib/seo/structured-data"
 import { sitioUrl } from "@/lib/site-url"
@@ -163,19 +164,9 @@ export default function RootLayout({
               identificadores de los enlaces de salto se mudaron a los
               elementos de verdad.
             */}
-            <Navbar />
-
-            {/*
-              El relleno de arriba (la barra es fija) estaba escrito a mano en
-              72px. La barra ahora mide siempre 64: antes cambiaba de alto al
-              hacer scroll, y ese cambio era lo que hacía que "se expandiera"
-              al abrir las notificaciones.
-            */}
-            <main id="main-content" role="main" className="flex-1 pt-16">
+            <MarcoSitio navbar={<Navbar />} footer={<Footer />}>
               {children}
-            </main>
-
-            <Footer />
+            </MarcoSitio>
           </div>
 
           <Toaster />

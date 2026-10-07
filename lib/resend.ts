@@ -222,3 +222,114 @@ export const sendOrderConfirmationEmail = async (orderData: DatosPedidoEmail) =>
 		return false;
 	}
 };
+
+/* ────────────────────────────────────────────────────────────────────────
+   Aviso a la tienda
+
+   ⚠️ Esto NO EXISTÍA. El único correo que salía era el de confirmación para
+   la clienta; a Estéfani no le llegaba nada. O sea que para enterarse de una
+   venta tenía que entrar al panel a mirar.
+
+   Con Yappy eso es peor todavía: el pago lo confirma ella a mano, así que si
+   no se entera de que entró un pedido, la clienta paga y se queda esperando
+   sin que nadie prepare nada.
+   ──────────────────────────────────────────────────────────────────────── */
+
+export interface AvisoTienda extends DatosPedidoEmail {
+	/** Teléfono que dejó la clienta, si lo hay. */
+	customerPhone?: string;
+	/**
+	 * 'pagado'   → el dinero ya entró, hay que preparar el pedido
+	 * 'esperando' → pedido registrado, falta que llegue el Yappy
+	 */
+	estado: 'pagado' | 'esperando';
+	/** Referencia corta que la clienta pone en el concepto del Yappy. */
+	referencia?: string;
+}
+
+export const sendNewOrderNotification = async (datos: AvisoTienda) => {
+	if (!correoListo()) {
+		console.warn(`[resend] No aviso de la venta: ${motivoCorreoNoListo()}`);
+		return false;
+	}
+	const from = remitente('pedidos');
+	if (!from) return false;
+
+	const esperando = datos.estado === 'esperando';
+	const filas = datos.orderItems
+		.map(
+			(i) => `
+        <tr>
+          <td style="padding:8px 0;font-size:14px;color:#111827">${esc(i.name)}</td>
+          <td style="padding:8px 0;font-size:14px;color:#6b7280;text-align:center">×${i.quantity}</td>
+          <td style="padding:8px 0;font-size:14px;color:#111827;text-align:right">${dinero(i.price * i.quantity)}</td>
+        </tr>`,
+		)
+		.join('');
+
+	const html = `
+  <div style="font-family:system-ui,-apple-system,'Segoe UI',sans-serif;max-width:560px;margin:auto;padding:28px 24px;background:#faf8ff;border-radius:18px">
+    <p style="margin:0 0 4px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:${esperando ? '#b45309' : '#5b21b6'}">
+      ${esperando ? 'Pedido esperando pago' : 'Venta confirmada'}
+    </p>
+    <h1 style="margin:0 0 18px;font-size:22px;color:#111827">
+      ${dinero(datos.totalAmount)}${datos.orderId ? ` · ${esc(datos.orderId.slice(0, 8).toUpperCase())}` : ''}
+    </h1>
+
+    ${
+			esperando
+				? `<div style="margin:0 0 20px;padding:12px 14px;background:#fef3c7;border-radius:12px;font-size:14px;color:#78350f">
+             Cuando veas el Yappy en tu app, entra al panel y toca
+             <strong>Confirmar pago</strong>. Ahí se descuenta el stock y le
+             sale el correo a la clienta.
+             ${datos.referencia ? `<br><br>Referencia que debe escribir: <strong>${esc(datos.referencia)}</strong>` : ''}
+           </div>`
+				: ''
+		}
+
+    <h3 style="margin:0 0 8px;font-size:15px;color:#111827">Quién compró</h3>
+    <p style="margin:0 0 20px;font-size:14px;line-height:1.7;color:#4b5563">
+      ${esc(datos.customerName)}<br>
+      <a href="mailto:${esc(datos.customerEmail)}" style="color:${MARCA.color}">${esc(datos.customerEmail)}</a>
+      ${datos.customerPhone ? `<br>Tel: ${esc(datos.customerPhone)}` : ''}
+    </p>
+
+    <h3 style="margin:0 0 4px;font-size:15px;color:#111827">Qué compró</h3>
+    <table style="width:100%;border-collapse:collapse">${filas}
+      <tr><td colspan="3" style="border-top:1px solid #e5e7eb;padding-top:10px"></td></tr>
+      <tr>
+        <td colspan="2" style="font-size:14px;font-weight:600;color:#111827">Total</td>
+        <td style="font-size:16px;font-weight:700;color:#111827;text-align:right">${dinero(datos.totalAmount)}</td>
+      </tr>
+    </table>
+
+    <p style="margin:18px 0 0;font-size:14px;color:#6b7280">
+      Pago: <strong style="color:#111827">${esc(nombreMetodoPago(datos.paymentMethod))}</strong>
+    </p>
+
+    ${bloqueDireccion(datos.shippingAddress)}
+
+    <p style="margin:28px 0 0">
+      <a href="https://mautik.vercel.app/admin"
+         style="display:inline-block;padding:12px 26px;background:#5b21b6;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px">
+        Abrir el panel
+      </a>
+    </p>
+  </div>`;
+
+	try {
+		await resend!.emails.send({
+			from,
+			to: [EMAIL_PUBLICO],
+			replyTo: datos.customerEmail,
+			subject: esperando
+				? `⏳ Pedido esperando Yappy · ${dinero(datos.totalAmount)} · ${esc(datos.customerName)}`
+				: `💜 Venta de ${dinero(datos.totalAmount)} · ${esc(datos.customerName)}`,
+			html,
+		});
+		return true;
+	} catch (error) {
+		console.error('[resend] no se pudo avisar de la venta:', error);
+		return false;
+	}
+};

@@ -60,7 +60,7 @@ function armarHtml(cuerpo: string, nombre: string | null): string {
     ${nombre ? `<p style="color:#3f3350;font-size:15px;margin:0 0 12px;">Hola ${nombre},</p>` : ''}
     <div style="color:#3f3350;font-size:15px;line-height:1.6;">${cuerpo}</div>
     <p style="margin:28px 0 0;">
-      <a href="https://mautik-web.vercel.app/shop" style="display:inline-block;padding:12px 28px;background:#5b21b6;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;">Ver la tienda</a>
+      <a href="https://mautik.vercel.app/shop" style="display:inline-block;padding:12px 28px;background:#5b21b6;color:#fff;text-decoration:none;border-radius:999px;font-weight:600;font-size:14px;">Ver la tienda</a>
     </p>
     <p style="margin-top:28px;font-size:12px;color:#8b7fa0;">
       Recibes esto porque tienes cuenta en ${MARCA.nombre}.

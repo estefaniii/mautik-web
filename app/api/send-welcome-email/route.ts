@@ -28,9 +28,9 @@ export async function POST(request: NextRequest) {
       <h1 style="color:#7c3aed;font-size:2.2rem;margin-bottom:12px;">¡Bienvenido${name ? `, ${name}` : ''} a Mautik!</h1>
       <p style="font-size:1.1rem;color:#444;">Nos alegra tenerte en nuestra comunidad de amantes de la artesanía panameña. Aquí encontrarás productos únicos, hechos con pasión y dedicación.</p>
       <div style="margin:32px 0;text-align:center;">
-        <img src="https://mautik-web.vercel.app/maar.png" alt="Bienvenida" style="width:80%;max-width:320px;border-radius:12px;box-shadow:0 2px 8px 0 rgba(124,58,237,0.10);" />
+        <img src="https://mautik.vercel.app/maar.png" alt="Bienvenida" style="width:80%;max-width:320px;border-radius:12px;box-shadow:0 2px 8px 0 rgba(124,58,237,0.10);" />
       </div>
-      <a href="https://mautik-web.vercel.app/" style="display:inline-block;margin-top:24px;padding:14px 36px;background:linear-gradient(90deg,#7c3aed,#a78bfa);color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:1.1rem;box-shadow:0 2px 8px 0 rgba(124,58,237,0.10);">Explora la tienda</a>
+      <a href="https://mautik.vercel.app/" style="display:inline-block;margin-top:24px;padding:14px 36px;background:linear-gradient(90deg,#7c3aed,#a78bfa);color:#fff;text-decoration:none;border-radius:8px;font-weight:bold;font-size:1.1rem;box-shadow:0 2px 8px 0 rgba(124,58,237,0.10);">Explora la tienda</a>
       <p style="margin-top:32px;font-size:13px;color:#888;">¿Tienes dudas o sugerencias? Responde a este correo, ¡estamos para ayudarte!<br/>Gracias por confiar en Mautik.</p>
     </div>
   `;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { calcularTotales } from '@/lib/payments/totales';
+import { sendNewOrderNotification } from '@/lib/resend';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -125,6 +126,40 @@ export async function POST(request: NextRequest) {
 			},
 			include: { items: true },
 		});
+
+		/*
+		  Aviso a la tienda para los pedidos de Yappy.
+
+		  Con Yappy el pago lo confirma Estéfani a mano, así que tiene que
+		  enterarse EN CUANTO se registra el pedido —no cuando ya lo
+		  confirmó—: si no, la clienta paga desde su app y se queda esperando
+		  porque nadie sabe que hay algo que revisar.
+
+		  Con PayPal no hace falta acá: el aviso sale cuando el cobro se
+		  confirma, que es segundos después.
+		*/
+		if (order.paymentMethod === 'yappy') {
+			try {
+				await sendNewOrderNotification({
+					estado: 'esperando',
+					customerName: usuario.name || 'Cliente',
+					customerEmail: usuario.email,
+					customerPhone: (usuario as any).phone || undefined,
+					orderItems: totales.items.map((i) => ({
+						name: i.name,
+						quantity: i.quantity,
+						price: i.price,
+					})),
+					shippingAddress,
+					paymentMethod: 'yappy',
+					totalAmount: totales.total,
+					orderId: order.id,
+					referencia: order.id.slice(0, 8).toUpperCase(),
+				});
+			} catch (e) {
+				console.error('[aviso-tienda] no se pudo avisar del pedido Yappy:', e);
+			}
+		}
 
 		return NextResponse.json({
 			message: 'Pedido creado',

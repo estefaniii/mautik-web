@@ -106,7 +106,7 @@ export async function GET(pedido: Request) {
 					? 'Las credenciales no autentican en ninguno de los dos: están mal copiadas o la app de PayPal fue borrada.'
 					: donde === entorno
 						? 'Todo en orden: autentica en el entorno configurado.'
-						: `Son credenciales de ${donde} y PAYPAL_ENV dice ${entorno}. Poné PAYPAL_ENV=${donde}, o cambiá las credenciales por las de ${entorno}.`,
+						: `Son credenciales de ${donde} y PAYPAL_ENV dice ${entorno}. Pon PAYPAL_ENV=${donde}, o cambia las credenciales por las de ${entorno}.`,
 		};
 	}
 
@@ -117,6 +117,18 @@ export async function GET(pedido: Request) {
 			configurado,
 			// Nunca sale el valor del secret: solo si tiene la pinta correcta.
 			problemas,
+			/*
+			  El webhook es la red de seguridad del cobro: si la clienta cierra
+			  la pestaña justo después de pagar, la captura no llega a correr y
+			  es PayPal quien nos avisa por ahí. Sin `PAYPAL_WEBHOOK_ID` la
+			  firma no se puede verificar y TODOS los avisos se rechazan, así
+			  que conviene verlo de un vistazo.
+			*/
+			webhook: {
+				configurado: Boolean(process.env.PAYPAL_WEBHOOK_ID),
+				url: 'https://mautik.vercel.app/api/paypal/webhook',
+				eventos: ['PAYMENT.CAPTURE.COMPLETED', 'PAYMENT.CAPTURE.DENIED'],
+			},
 			...(prueba ? { prueba } : {}),
 		},
 		{ headers: { 'Cache-Control': 'no-store' } },
