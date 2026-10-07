@@ -13,7 +13,7 @@
     {
       "sku": "MTK-CR-001",
       "name": "Peluche de Vaquita",
-      "price": 10,
+      "price": 12.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -24,7 +24,7 @@
     {
       "sku": "MTK-CR-002",
       "name": "Osito de crochet pequeño",
-      "price": 6,
+      "price": 7.5,
       "category": "crochet",
       "stock": 5,
       "featured": true,
@@ -34,7 +34,7 @@
     {
       "sku": "MTK-CR-003",
       "name": "Capibara grande de Crochet",
-      "price": 25,
+      "price": 30,
       "category": "crochet",
       "stock": 1,
       "featured": true,
@@ -44,7 +44,7 @@
     {
       "sku": "MTK-CR-004",
       "name": "Peluche de pulpo",
-      "price": 6,
+      "price": 7.5,
       "category": "crochet",
       "stock": 6,
       "featured": true,
@@ -54,7 +54,7 @@
     {
       "sku": "MTK-CR-005",
       "name": "Peluche de patito",
-      "price": 6,
+      "price": 7.5,
       "category": "crochet",
       "stock": 5,
       "featured": true,
@@ -64,7 +64,7 @@
     {
       "sku": "MTK-CR-006",
       "name": "Peluche de Capibara Pequeño",
-      "price": 7.5,
+      "price": 9.5,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -74,7 +74,7 @@
     {
       "sku": "MTK-CR-007",
       "name": "Peluche de Any",
-      "price": 16,
+      "price": 20,
       "category": "crochet",
       "stock": 2,
       "featured": true,
@@ -84,7 +84,7 @@
     {
       "sku": "MTK-CR-008",
       "name": "Spiderman mediano",
-      "price": 22,
+      "price": 26.5,
       "category": "crochet",
       "stock": 1,
       "featured": true,
@@ -94,7 +94,7 @@
     {
       "sku": "MTK-CR-009",
       "name": "Hollow Knight mediano",
-      "price": 23,
+      "price": 27.5,
       "category": "crochet",
       "stock": 1,
       "featured": true,
@@ -104,7 +104,7 @@
     {
       "sku": "MTK-CR-010",
       "name": "Peluche de Conejo",
-      "price": 16,
+      "price": 20,
       "category": "crochet",
       "stock": 2,
       "featured": true,
@@ -114,7 +114,7 @@
     {
       "sku": "MTK-CR-011",
       "name": "Ranita pequeña",
-      "price": 4.5,
+      "price": 5.5,
       "category": "crochet",
       "stock": 8,
       "featured": true,
@@ -124,7 +124,7 @@
     {
       "sku": "MTK-CR-012",
       "name": "Luffy mediano",
-      "price": 23,
+      "price": 27.5,
       "category": "crochet",
       "stock": 1,
       "featured": true,
@@ -134,7 +134,7 @@
     {
       "sku": "MTK-CR-013",
       "name": "Husky de crochet",
-      "price": 10,
+      "price": 12.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -144,7 +144,7 @@
     {
       "sku": "MTK-CR-014",
       "name": "Oso Panda pequeño",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -154,7 +154,7 @@
     {
       "sku": "MTK-CR-015",
       "name": "Patito pequeño",
-      "price": 7,
+      "price": 9,
       "category": "crochet",
       "stock": 5,
       "featured": true,
@@ -164,7 +164,7 @@
     {
       "sku": "MTK-CR-016",
       "name": "Perritos de crochet",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -174,7 +174,7 @@
     {
       "sku": "MTK-CR-017",
       "name": "Kuromi de crochet",
-      "price": 16,
+      "price": 20,
       "category": "crochet",
       "stock": 2,
       "featured": true,
@@ -184,7 +184,7 @@
     {
       "sku": "MTK-CR-018",
       "name": "Conejito de crochet",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -194,7 +194,7 @@
     {
       "sku": "MTK-CR-019",
       "name": "Osito de crochet grande",
-      "price": 10,
+      "price": 12.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -204,7 +204,7 @@
     {
       "sku": "MTK-CR-020",
       "name": "Vaquita de crochet",
-      "price": 10,
+      "price": 12.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -214,7 +214,7 @@
     {
       "sku": "MTK-CR-021",
       "name": "Conejita pequeña de crochet",
-      "price": 7,
+      "price": 9,
       "category": "crochet",
       "stock": 5,
       "featured": true,
@@ -224,7 +224,7 @@
     {
       "sku": "MTK-CR-022",
       "name": "Peluche de Radiohead",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 2,
       "featured": true,
@@ -234,7 +234,7 @@
     {
       "sku": "MTK-CR-023",
       "name": "Perrito de Peluche con corazón",
-      "price": 9,
+      "price": 11.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -244,7 +244,7 @@
     {
       "sku": "MTK-CR-024",
       "name": "Conejitos de crochet",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -254,7 +254,7 @@
     {
       "sku": "MTK-CR-025",
       "name": "Pompompurin pequeño",
-      "price": 8,
+      "price": 10,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -264,7 +264,7 @@
     {
       "sku": "MTK-CR-026",
       "name": "Peluches de pulpo de colores",
-      "price": 6,
+      "price": 7.5,
       "category": "crochet",
       "stock": 8,
       "featured": true,
@@ -274,7 +274,7 @@
     {
       "sku": "MTK-CR-027",
       "name": "Peluche de Gallina que cuelga",
-      "price": 6,
+      "price": 7.5,
       "category": "crochet",
       "stock": 4,
       "featured": true,
@@ -284,7 +284,7 @@
     {
       "sku": "MTK-CR-028",
       "name": "Perrito a crochet",
-      "price": 9,
+      "price": 11.5,
       "category": "crochet",
       "stock": 3,
       "featured": true,
@@ -294,7 +294,7 @@
     {
       "sku": "MTK-CR-029",
       "name": "Capibara con accesorios crochet",
-      "price": 30,
+      "price": 36,
       "category": "crochet",
       "stock": 1,
       "featured": true,
@@ -304,7 +304,7 @@
     {
       "sku": "MTK-LL-001",
       "name": "Llavero de gatito",
-      "price": 6,
+      "price": 7.5,
       "category": "llaveros",
       "stock": 6,
       "featured": true,
@@ -314,7 +314,7 @@
     {
       "sku": "MTK-LL-002",
       "name": "Patito que cuelga",
-      "price": 5.5,
+      "price": 7,
       "category": "llaveros",
       "stock": 7,
       "featured": true,
@@ -324,7 +324,7 @@
     {
       "sku": "MTK-LL-003",
       "name": "Abejitas a crochet llavero",
-      "price": 5.5,
+      "price": 7,
       "category": "llaveros",
       "stock": 8,
       "isNew": true,
@@ -335,7 +335,7 @@
     {
       "sku": "MTK-LL-004",
       "name": "Flor que cuelga para bálsamo",
-      "price": 5,
+      "price": 6.5,
       "category": "llaveros",
       "stock": 6,
       "isNew": true,
@@ -346,7 +346,7 @@
     {
       "sku": "MTK-OT-001",
       "name": "Diadema de rosas grandes",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 3,
       "isNew": true,
@@ -357,7 +357,7 @@
     {
       "sku": "MTK-OT-002",
       "name": "Diadema de rosas pequeñas",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 3,
       "isNew": true,
@@ -368,7 +368,7 @@
     {
       "sku": "MTK-OT-003",
       "name": "Pieza de baño a crochet",
-      "price": 15,
+      "price": 19,
       "category": "otros",
       "stock": 2,
       "featured": true,
@@ -378,7 +378,7 @@
     {
       "sku": "MTK-OT-004",
       "name": "Cartera de rosas a crochet",
-      "price": 15,
+      "price": 19,
       "category": "otros",
       "stock": 2,
       "featured": true,
@@ -389,7 +389,7 @@
     {
       "sku": "MTK-AN-001",
       "name": "Anillo de alambre bañado en oro",
-      "price": 3.5,
+      "price": 4.5,
       "category": "anillos",
       "stock": 6,
       "featured": true,
@@ -399,7 +399,7 @@
     {
       "sku": "MTK-AN-002",
       "name": "Anillo de perlas",
-      "price": 0.5,
+      "price": 1,
       "category": "anillos",
       "stock": 12,
       "featured": true,
@@ -409,7 +409,7 @@
     {
       "sku": "MTK-AR-001",
       "name": "Aretes de alambre bañado en oro",
-      "price": 3,
+      "price": 4,
       "category": "aretes",
       "stock": 8,
       "featured": true,
@@ -419,7 +419,7 @@
     {
       "sku": "MTK-AR-002",
       "name": "Aretes de alambre bañado en oro (chico)",
-      "price": 2.5,
+      "price": 3.5,
       "category": "aretes",
       "stock": 8,
       "featured": true,
@@ -429,7 +429,7 @@
     {
       "sku": "MTK-AR-003",
       "name": "Arete piercing",
-      "price": 1,
+      "price": 1.5,
       "category": "aretes",
       "stock": 15,
       "featured": true,
@@ -439,7 +439,7 @@
     {
       "sku": "MTK-PU-001",
       "name": "Pulsera de alambre bañado en oro",
-      "price": 8.0,
+      "price": 10.5,
       "category": "pulseras",
       "stock": 4,
       "featured": true,
@@ -449,7 +449,7 @@
     {
       "sku": "MTK-PU-002",
       "name": "Brazalete de hilo",
-      "price": 1.5,
+      "price": 2,
       "category": "pulseras",
       "stock": 15,
       "featured": true,
@@ -459,7 +459,7 @@
     {
       "sku": "MTK-PU-003",
       "name": "Brazalete de hilo con diseño",
-      "price": 2.5,
+      "price": 3.5,
       "category": "pulseras",
       "stock": 10,
       "featured": true,
@@ -469,7 +469,7 @@
     {
       "sku": "MTK-PU-004",
       "name": "Pulsera de perlas con alambre bañado en oro",
-      "price": 5.0,
+      "price": 6.5,
       "category": "pulseras",
       "stock": 12,
       "featured": true,
@@ -479,7 +479,7 @@
     {
       "sku": "MTK-PU-005",
       "name": "Pulsera de perlas con diseño",
-      "price": 2,
+      "price": 2.5,
       "category": "pulseras",
       "stock": 10,
       "featured": true,
@@ -489,7 +489,7 @@
     {
       "sku": "MTK-CO-001",
       "name": "Collar de perlas con inicial dorada",
-      "price": 7.5,
+      "price": 10,
       "category": "collares",
       "stock": 5,
       "featured": true,
@@ -500,7 +500,7 @@
     {
       "sku": "MTK-CO-002",
       "name": "Collar de perlas e hilo nilon",
-      "price": 5,
+      "price": 6.5,
       "category": "collares",
       "stock": 6,
       "foto": "mtk-co-002.webp",
@@ -509,7 +509,7 @@
     {
       "sku": "MTK-PU-006",
       "name": "Pulseras de perlas con diseños",
-      "price": 3.5,
+      "price": 4.5,
       "category": "pulseras",
       "stock": 8,
       "featured": true,
@@ -519,7 +519,7 @@
     {
       "sku": "MTK-PU-007",
       "name": "Pulsera de hilo con ojo turco",
-      "price": 3.5,
+      "price": 4.5,
       "category": "pulseras",
       "stock": 10,
       "featured": true,
@@ -529,7 +529,7 @@
     {
       "sku": "MTK-PU-008",
       "name": "Pulseras de cuentas de colores con dije",
-      "price": 3.75,
+      "price": 5,
       "category": "pulseras",
       "stock": 5,
       "featured": true,
@@ -539,7 +539,7 @@
     {
       "sku": "MTK-PU-009",
       "name": "Par de Pulseras de hilo",
-      "price": 3.75,
+      "price": 5,
       "category": "pulseras",
       "stock": 6,
       "featured": true,
@@ -549,7 +549,7 @@
     {
       "sku": "MTK-PU-010",
       "name": "Pulseras de hilo",
-      "price": 3,
+      "price": 4,
       "category": "pulseras",
       "stock": 12,
       "featured": true,
@@ -559,7 +559,7 @@
     {
       "sku": "MTK-PU-011",
       "name": "Pulsera de hilo con perla",
-      "price": 3.5,
+      "price": 4.5,
       "category": "pulseras",
       "stock": 8,
       "featured": true,
@@ -569,7 +569,7 @@
     {
       "sku": "MTK-CO-003",
       "name": "Chocker de hilo",
-      "price": 3.5,
+      "price": 4.5,
       "category": "collares",
       "stock": 6,
       "featured": true,
@@ -579,7 +579,7 @@
     {
       "sku": "MTK-AN-003",
       "name": "Anillos con diseños",
-      "price": 1.5,
+      "price": 2,
       "category": "anillos",
       "stock": 12,
       "featured": true,
@@ -589,7 +589,7 @@
     {
       "sku": "MTK-AN-004",
       "name": "Anillos con diseño sencillo",
-      "price": 1,
+      "price": 1.5,
       "category": "anillos",
       "stock": 15,
       "featured": true,
@@ -599,7 +599,7 @@
     {
       "sku": "MTK-AR-004",
       "name": "Piercing plateado",
-      "price": 2.5,
+      "price": 3.5,
       "category": "aretes",
       "stock": 6,
       "featured": false,
@@ -609,7 +609,7 @@
     {
       "sku": "MTK-OT-005",
       "name": "Cartera crema tejida a crochet",
-      "price": 25,
+      "price": 30,
       "category": "otros",
       "stock": 1,
       "featured": true,
@@ -620,7 +620,7 @@
     {
       "sku": "MTK-OT-006",
       "name": "Bandana para perro rosada con margarita",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 1,
       "featured": false,
@@ -631,7 +631,7 @@
     {
       "sku": "MTK-OT-007",
       "name": "Diadema lila de margaritas",
-      "price": 12,
+      "price": 15,
       "category": "otros",
       "stock": 1,
       "featured": false,
@@ -642,7 +642,7 @@
     {
       "sku": "MTK-OT-008",
       "name": "Girasol tejido a crochet",
-      "price": 15,
+      "price": 19,
       "category": "otros",
       "stock": 2,
       "featured": false,
@@ -653,7 +653,7 @@
     {
       "sku": "MTK-OT-010",
       "name": "Bandana para perro morada con estrella",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 1,
       "featured": false,
@@ -664,7 +664,7 @@
     {
       "sku": "MTK-OT-011",
       "name": "Bandana para perro azul con rayo",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 1,
       "featured": false,
@@ -675,7 +675,7 @@
     {
       "sku": "MTK-OT-012",
       "name": "Bandana para perro lila con margarita",
-      "price": 8,
+      "price": 10,
       "category": "otros",
       "stock": 1,
       "featured": false,
@@ -686,7 +686,7 @@
     {
       "sku": "MTK-AN-005",
       "name": "Anillo de alambre bañado en oro con piedras",
-      "price": 3.5,
+      "price": 4.5,
       "category": "anillos",
       "stock": 1,
       "featured": false,
@@ -697,7 +697,7 @@
     {
       "sku": "MTK-CR-030",
       "name": "Chuyin",
-      "price": 25,
+      "price": 30,
       "category": "crochet",
       "stock": 1,
       "featured": false,
