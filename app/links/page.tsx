@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Montserrat } from "next/font/google"
-import { Instagram, Facebook, Youtube, MessageCircle, ShoppingBag, Mail, MapPin, Clock, Heart, ArrowUpRight } from "lucide-react"
+import { Instagram, Facebook, Youtube, MessageCircle, ShoppingBag, Mail, MapPin, Clock, Sparkles, ArrowUpRight } from "lucide-react"
 import { EMAIL_PUBLICO, enlaceWhatsapp } from "@/lib/contacto"
 
 /*
@@ -71,7 +71,7 @@ export default function LinksPage() {
           <p className="mt-3 text-sm font-medium uppercase tracking-[0.25em] text-violet-200/90">
             Crochet · Bisutería
           </p>
-          <p className="mt-2 text-[15px] text-violet-100/75">Hecho a mano con amor desde Panamá</p>
+          <p className="mt-2 text-[15px] text-violet-100/90">Hecho a mano con amor desde Panamá</p>
         </header>
 
         {/* Enlace principal */}
@@ -107,10 +107,10 @@ export default function LinksPage() {
                 </span>
                 <span className="text-left">
                   <span className="block font-semibold text-[#F3E8FF]">{titulo}</span>
-                  <span className="block text-xs text-violet-200/70">{detalle}</span>
+                  <span className="block text-xs text-violet-100/85">{detalle}</span>
                 </span>
               </span>
-              <ArrowUpRight className="h-4 w-4 text-violet-200/60 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-violet-100" aria-hidden />
+              <ArrowUpRight className="h-4 w-4 text-violet-200/80 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-violet-100" aria-hidden />
             </a>
           ))}
         </nav>
@@ -140,7 +140,7 @@ export default function LinksPage() {
         </section>
 
         {/* Datos */}
-        <section aria-label="Contacto" className="mt-8 grid grid-cols-3 gap-2 text-center text-[11px] text-violet-100/80 sm:text-xs">
+        <section aria-label="Contacto" className="mt-8 grid grid-cols-3 gap-2 text-center text-xs text-violet-50/90">
           <a href={`mailto:${EMAIL_PUBLICO}`} className="flex flex-col items-center gap-1.5 rounded-xl bg-white/[0.05] px-2 py-3 hover:bg-white/[0.1]">
             <Mail className="h-4 w-4 text-fuchsia-200" aria-hidden />
             <span className="leading-tight">Escríbenos<br />por correo</span>
@@ -155,16 +155,17 @@ export default function LinksPage() {
           </div>
         </section>
 
+        {/* Pedido personalizado: lleva directo a la venta por WhatsApp */}
         <a
-          href="https://paypal.me/estefanniii"
+          href={enlaceWhatsapp("¡Hola Mautik! Quiero un diseño personalizado: ")}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-4 flex items-center justify-center gap-2 rounded-2xl border border-fuchsia-300/30 px-5 py-3 text-sm font-semibold text-fuchsia-100 transition hover:bg-fuchsia-300/10"
+          className="mt-4 flex min-h-[52px] items-center justify-center gap-2 rounded-2xl border border-fuchsia-300/50 bg-fuchsia-300/10 px-5 py-3 text-[15px] font-semibold text-fuchsia-50 transition hover:bg-fuchsia-300/20 focus:outline-none focus-visible:ring-4 focus-visible:ring-fuchsia-300/50"
         >
-          <Heart className="h-4 w-4" aria-hidden /> Apoya mi arte
+          <Sparkles className="h-4 w-4" aria-hidden /> Pide tu diseño personalizado
         </a>
 
-        <footer className="mt-auto pt-10 text-center text-xs text-violet-200/60">
+        <footer className="mt-auto pt-10 text-center text-xs text-violet-200/80">
           © {new Date().getFullYear()} Mautik · hecho a mano con amor
         </footer>
       </div>
