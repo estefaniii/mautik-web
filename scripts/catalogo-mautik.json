@@ -104,7 +104,7 @@
     {
       "sku": "MTK-CR-010",
       "name": "Peluche de Conejo",
-      "price": 20,
+      "price": 18,
       "category": "crochet",
       "stock": 2,
       "featured": true,
@@ -304,7 +304,7 @@
     {
       "sku": "MTK-LL-001",
       "name": "Llavero de gatito",
-      "price": 7.5,
+      "price": 6,
       "category": "llaveros",
       "stock": 6,
       "featured": true,
