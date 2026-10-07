@@ -12,7 +12,7 @@ import { EMAIL_PUBLICO, enlaceWhatsapp } from "@/lib/contacto"
   Tipografía de los títulos: Montserrat (elegida por la marca en vez de
   Heading Now, que es comercial).
 */
-const titular = Montserrat({ weight: ["700", "800"], subsets: ["latin"], display: "swap" })
+const titular = Montserrat({ weight: ["400", "500"], subsets: ["latin"], display: "swap" })
 
 export const metadata: Metadata = {
   title: "Mautik · Enlaces",
@@ -65,7 +65,7 @@ export default function LinksPage() {
             />
           </div>
 
-          <h1 className={`${titular.className} mt-6 text-5xl font-extrabold uppercase leading-none tracking-[0.06em] text-[#F3E8FF] sm:text-6xl`}>
+          <h1 className={`${titular.className} mt-5 text-4xl font-medium lowercase leading-none tracking-tight text-[#F0ABFC] sm:text-5xl`}>
             Mautik
           </h1>
           <p className="mt-3 text-sm font-medium uppercase tracking-[0.25em] text-violet-200/90">
@@ -84,7 +84,7 @@ export default function LinksPage() {
               <ShoppingBag className="h-5 w-5" aria-hidden />
             </span>
             <span className="text-left">
-              <span className={`${titular.className} block text-lg font-extrabold uppercase tracking-wide`}>Ver la tienda</span>
+              <span className={`${titular.className} block text-base font-medium`}>Ver la tienda</span>
               <span className="block text-xs font-medium text-[#4C1D95]/80">Paga con Yappy o PayPal</span>
             </span>
           </span>
@@ -117,7 +117,7 @@ export default function LinksPage() {
 
         {/* Muestra de productos */}
         <section aria-labelledby="hecho-a-mano" className="mt-10">
-          <h2 id="hecho-a-mano" className={`${titular.className} text-center text-xl font-bold tracking-wide text-violet-100`}>
+          <h2 id="hecho-a-mano" className={`${titular.className} text-center text-lg font-medium text-[#E9D5FF]`}>
             Nuestros diseños
           </h2>
           <div className="mt-4 grid grid-cols-2 gap-3">
