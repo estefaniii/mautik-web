@@ -131,9 +131,10 @@ De arriba a abajo:
 PayPal.me **personal** con el nombre completo de Estéfani y no vendía nada.
 Regla de Estéfani: todo botón del linktree debe **llevar a una venta**.
 
-**Pendiente de Estéfani:** cambiar el enlace de la bio de @mautik_official a
-`https://mautik.vercel.app/links`. Solo se puede desde la **app del
-celular** (Instagram web no deja editar enlaces), con la cuenta de Mautik.
+**Bio de Instagram:** ✅ @mautik_official ya apunta a
+`https://mautik.vercel.app/links` (cambiado por Estéfani el 09-oct-2026).
+Si hay que cambiarlo otra vez: solo desde la **app del celular** (Instagram
+web no deja editar enlaces).
 
 ---
 
@@ -317,15 +318,15 @@ Google OAuth, webhook de PayPal, `NEXTAUTH_URL` y `NEXT_PUBLIC_SITE_URL`.
 | 09-oct | `/links`: «Apoya mi arte» → **Pide tu diseño personalizado** (WhatsApp); más contraste |
 | 09-oct | **Panel admin** arreglado (`totalAmount`) |
 | 09-oct | Carpeta local `mautiklinks` a la Papelera |
+| 09-oct | Bio de Instagram apuntada a `/links` (Estéfani) |
 
 ---
 
 ## 13. Pendientes
 
-1. **Estéfani:** cambiar el link de la bio de Instagram a `mautik.vercel.app/links` (desde la app).
-2. **Estéfani:** confirmar que `/admin` ya abre bien.
-3. **La compra real de prueba** (solo puede hacerla Estéfani).
-4. **Botón de Pago de Yappy** — esperando a Banco General.
-5. **31 productos con una sola foto** (sin cambio de imagen al pasar el dedo).
-6. **Credenciales locales de la base vencidas**: para trabajar en local con
+1. **Estéfani:** confirmar que `/admin` ya abre bien.
+2. **La compra real de prueba** (solo puede hacerla Estéfani).
+3. **Botón de Pago de Yappy** — esperando a Banco General.
+4. **31 productos con una sola foto** (sin cambio de imagen al pasar el dedo).
+5. **Credenciales locales de la base vencidas**: para trabajar en local con
    datos reales hay que bajar las de Vercel (`vercel env pull`).
