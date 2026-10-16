@@ -7,7 +7,7 @@ Torres, en La Chorrera, Panamá Oeste. Instagram **@mautik_official**.
 > saber qué es cada cosa cuando Estéfani pida algo. El historial largo de
 > arreglos está en `GUIA-MAUTIK.md`.
 
-Última actualización: **9 de octubre de 2026**.
+Última actualización: **16 de octubre de 2026**.
 
 ---
 
